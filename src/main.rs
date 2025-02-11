@@ -1,5 +1,6 @@
 use std::{any::Any, path::Path};
 use root_io::*;
+use std::env;
 
 // ROOT file format
 // from https://github.com/root-project/root/blob/master/io/io/src/TFile.cxx
@@ -43,16 +44,19 @@ use root_io::*;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = env::args().collect();
     // RootFile::new("../b2hhh.zstd.root");
-    let filename = "../b2hhh.zstd.root";
+    // if arg given, read file from given  name, otherwise default
+    let default_file = String::from("../b2hhh.zstd.root");
+    let filename: &String = if args.len() <= 1 {&default_file} else {&args[1]};
     println!("Opening file: {}", filename);
     let path = Path::new(filename);
     let rf = RootFile::new(path).await?;
     println!("File: {:?}", rf);
     let tree = rf.items()[0].as_tree().await?;
-    // let branches = tree.branch_names_and_types();
-    // for (name, types) in branches {
-    //     println!("{}: {:?}", name, types);
-    // }
+    let branches = tree.branch_names_and_types();
+    for (name, types) in branches {
+        println!("{}", name);
+    }
     return Ok(());
 }
