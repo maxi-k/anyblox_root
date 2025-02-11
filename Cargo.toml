@@ -1,0 +1,11 @@
+[package]
+name = "anyroot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+root-io = "0.3.0"
+tokio = {  version = "1.43.0", features = ["rt", "macros"] }
+
+[dev-dependencies]
+root-ls = "0.2.0"
