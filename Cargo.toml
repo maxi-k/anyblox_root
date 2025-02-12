@@ -5,8 +5,6 @@ edition = "2021"
 
 [dependencies]
 memmap = "0.7.0"
-root-io = "0.3.0"
-tokio = {  version = "1.43.0", features = ["rt", "macros"] }
 
 [dev-dependencies]
 root-ls = "0.2.0"
