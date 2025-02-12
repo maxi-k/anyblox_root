@@ -56,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tree = rf.items()[0].as_tree().await?;
     let branches = tree.branch_names_and_types();
     for (name, types) in branches {
-        println!("{}", name);
+        println!("{}: {:?}", name, types);
     }
     return Ok(());
 }
