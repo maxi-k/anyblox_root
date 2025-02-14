@@ -15,4 +15,18 @@ pub type fileptr = u32;
 
 pub trait MMapReader {
   fn read(src: &[u8]) -> (Self, usize) where Self: Sized;
+
+  fn take<'a>(src: &'a [u8]) -> (Self, &'a [u8]) where Self: Sized {
+    let (val, len) = Self::read(src);
+    return (val, &src[len..])
+  }
+
+  fn read_string(src: &[u8]) -> (String, usize) {
+    let len = read_be!(src, u8, 0, 1);
+    let (start, len) = match (src, len)  {
+      (src, 255) => (&src[4..], read_be!(src, u32, 1, 4) as usize),
+      (src, val) => (&src[1..], val as usize)
+    };
+    return (String::from_utf8(start[..len].to_vec()).unwrap(), len + 1);
+  }
 }

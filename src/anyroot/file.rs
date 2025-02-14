@@ -43,6 +43,16 @@ pub struct RootHeader {
     pub uuid: u128
 }
 
+impl RootHeader {
+    pub fn dir_offset(&self) -> usize {
+        return (self.begin + self.nbytes_name) as usize;
+    }
+
+    pub fn dir_ptr<'a>(&self, src: &'a [u8]) -> &'a [u8] {
+        return &src[self.dir_offset()..];
+    }
+}
+
 impl MMapReader for RootHeader {
     // interface
     fn read(mmap: &[u8]) -> (Self, usize) {

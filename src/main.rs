@@ -2,23 +2,6 @@ use memmap::Mmap;
 mod anyroot;
 use crate::anyroot::*;
 
-//#[derive(Debug)]
-// struct Directory {
-//     version: u16,
-//     c_time: u32,
-//     m_time: u32,
-//     n_bytes_keys: i32,
-//     n_bytes_name: i32,
-//     seek_dir: fileptr,
-//     seek_parent: fileptr,
-//     seek_keys: fileptr,
-// }
-
-// fn read_directory(mmap: &[u8]) -> Directory {
-//     return Directory {
-//         version : read_be!(mmap, u16, 0, 2)
-//     }
-// } 
 
 // #[derive(Debug)]
 // pub(crate) struct TStreamerElement {
@@ -55,11 +38,32 @@ fn main() {
     let mmap = unsafe { Mmap::map(&file).unwrap() };
     // read the header according to the spec
     let (header, _size) = RootHeader::read(&mmap);
-    println!("file header: {:?}", header);
-    // read directory object header according to the spec
+    println!("file header: {:?} ({})", header, _size);
+
+    // read seek info object header according to the spec
     let (obj_header, _size) = RecordHeader::read(&mmap[header.seek_info as usize..]);
-    println!("streamer info header: {:?}", obj_header);
+    println!("streamer info header: {:?} ({})", obj_header, _size);
+
     // read first object
     let (obj_header, _size) = RecordHeader::read(&mmap[header.begin as usize..]);
-    println!("first object: {:?}", obj_header);
+    println!("first object: {:?} ({})", obj_header, _size);
+    assert!(!obj_header.is_compressed());
+
+    // read directory
+    let (dir, _size) = Directory::read(header.dir_ptr(&mmap));
+    println!("directory: {:?} ({})", obj_header, _size);
+
+    // read key list record
+    let (obj_header, _size) = RecordHeader::read(dir.keys_ptr(&mmap));
+    println!("key list record: {:?} ({})", obj_header, _size);
+
+    let (keys, _size) = KeyHeaders::read(&obj_header.data_ptr(&mmap));
+    println!("keys: {:?} ({})", keys, _size);
+
+    // // read first object content
+    // let start = obj_header.data_start(&mmap[0..]);
+    // // sanity check: print mmap start ptr and this ptr, diff
+    // println!("mmap start: {:p}, this start: {:p}, diff: {}", &mmap[0], start, (unsafe { start.as_ptr().byte_offset_from(mmap.as_ptr()) }) as usize);
+    // let (obj_header2, _size) = ObjHeader::read(start);
+    // println!("first object data: {:?} ({})", obj_header2, _size);
 }
