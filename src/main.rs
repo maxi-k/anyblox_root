@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     // RootFile::new("../b2hhh.zstd.root");
     // if arg given, read file from given  name, otherwise default
-    let default_file = String::from("../b2hhh.zstd.root");
+    let default_file = String::from("../cern.ch:84000.root");
     let filename: &String = if args.len() <= 1 {&default_file} else {&args[1]};
     println!("Opening file: {}", filename);
     let path = Path::new(filename);
