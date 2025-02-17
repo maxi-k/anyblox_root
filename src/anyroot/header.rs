@@ -125,20 +125,30 @@ impl MMapReader for Directory {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct KeyHeaders {
-    pub count: u32
+    pub count: u32,
     // pub key_offsets: Vec<fileptr>
+}
+
+impl KeyHeaders {
+    pub fn first_key_offset() -> usize {
+        return 4;
+    }
+
+    pub fn first_key_ptr<'a>(&self, mmap: &'a [u8]) -> &'a [u8] {
+        return &mmap[Self::first_key_offset()..];
+    }
 }
 
 impl MMapReader for KeyHeaders {
     fn read(src: &[u8]) -> (Self, usize) where Self: Sized {
         let count = read_be!(src, u32, 0, 4);
-        let mut off = 4;
-        for i in 0..count {
-            let (key, _size) = RecordHeader::read(&src[off..]);
-            println!("key {}: {:?} ({})", i, key, _size);
-            off += key.nbytes as usize;
-        }
-        return (KeyHeaders { count }, off)
+        let mut off = Self::first_key_offset();
+        // for i in 0..count {
+        //     let (key, _size) = RecordHeader::read(&src[off..]);
+        //     println!("key {}: {:?} ({})", i, key, _size);
+        //     off += key.nbytes as usize;
+        // }
+        return (KeyHeaders { count }, off);
     }
 }
 
@@ -147,28 +157,40 @@ impl MMapReader for KeyHeaders {
 // parsed out of code from inofficial go root implementation
 // https://github.com/go-hep/hep/blob/main/groot/rbytes/rbuffer.go#L99 and following
 
+#[derive(Debug)]
+enum ObjEncoding {
+    Zlib, // ZL
+    XZ,   // XZ
+    LZ4,  // LZ
+    ZSTD, // ZS
+}
+
 #[allow(dead_code)]
 #[derive(Debug)]
-pub struct CompressedObjHeader {
-    pub magic_bytes: [u8; 2],
-    pub header: [u8; 7],
+pub struct ObjHeaderEncoding {
+    pub encoding: ObjEncoding,
 }
 
-impl MMapReader for CompressedObjHeader {
+impl ObjEncoding {
+   fn from_bytes(bytes: &[u8]) -> Self {
+       match bytes {
+           b"ZL" => ObjEncoding::Zlib,
+           b"XZ" => ObjEncoding::XZ,
+           b"LZ" => ObjEncoding::LZ4,
+           b"ZS" => ObjEncoding::ZSTD,
+           _ => panic!("unknown encoding")
+       }
+   }
+}
+
+impl MMapReader for ObjHeaderEncoding {
     fn read(mmap: &[u8]) -> (Self, usize) {
-        let hdr = CompressedObjHeader {
-            magic_bytes: [mmap[0], mmap[1]],
-            header: [mmap[2], mmap[3], mmap[4], mmap[5], mmap[6], mmap[7], mmap[8]],
-        };
-        // print bytes as ascii
-        let magic_str = String::from_utf8_lossy(&hdr.magic_bytes);
-        let header_str = String::from_utf8_lossy(&hdr.header);
-        println!("magic: {}, header: {}", magic_str, header_str);
-        return (hdr, 9)
+        let magic_str = String::from_utf8_lossy(&mmap[0..2]);
+        println!("parsed magic str: {}", magic_str);
+        // there are 7 additional bytes we can ignore for some reason
+        return (ObjHeaderEncoding{encoding: ObjEncoding::from_bytes(&mmap[0..2])}, 9)
     }
 }
-
-
 
 #[allow(dead_code)]
 #[derive(Debug)]

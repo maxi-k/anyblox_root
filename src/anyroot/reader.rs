@@ -27,6 +27,7 @@ pub trait MMapReader {
       (src, 255) => (&src[4..], read_be!(src, u32, 1, 4) as usize),
       (src, val) => (&src[1..], val as usize)
     };
+    println!("read_string: len={}", len);
     return (String::from_utf8(start[..len].to_vec()).unwrap(), len + 1);
   }
 }

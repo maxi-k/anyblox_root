@@ -60,6 +60,12 @@ fn main() {
     let (keys, _size) = KeyHeaders::read(&obj_header.data_ptr(&mmap));
     println!("keys: {:?} ({})", keys, _size);
 
+    let (fkey, _size) = RecordHeader::read(keys.first_key_ptr(&obj_header.data_ptr(&mmap)));
+    println!("first key: {:?} ({})", fkey, _size);
+
+    let (tree, _size) = TreeObj::read(fkey.data_ptr(&mmap));
+    println!("tree: {:?} ({})", tree, _size);
+
     // // read first object content
     // let start = obj_header.data_start(&mmap[0..]);
     // // sanity check: print mmap start ptr and this ptr, diff
