@@ -18,7 +18,7 @@ impl Container {
     pub(crate) async fn raw_data(self) -> Result<(u32, Vec<u8>), Error> {
         let buf = match self {
             Container::InMemory(buf) => buf,
-            Container::OnDisk(source, seek, len) => source.fetch(seek, len).await?,
+            Container::OnDisk(source, seek, len) => source.fetch(seek, len)?,
         };
         match tbasket2vec(buf.as_slice()) {
             Ok((_, v)) => Ok(v),

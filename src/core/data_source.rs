@@ -23,7 +23,7 @@ impl Source {
         thing.into()
     }
 
-    pub async fn fetch(&self, start: u64, len: u64) -> Result<Vec<u8>, Error> {
+    pub fn fetch(&self, start: u64, len: u64) -> Result<Vec<u8>, Error> {
         match &self.0 {
             SourceInner::Local(path) => {
                 let mut f = File::open(path)?;

@@ -35,3 +35,7 @@ web-sys = {"version" = "0.3.4", "features" = [ 'console' ]}
 [[bench]]
 name = "iter_branch"
 harness = false
+
+# default binary which prints root file data
+[[bin]]
+name = "root_inspect"
