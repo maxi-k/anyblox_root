@@ -91,7 +91,7 @@ pub struct Tree {
 
 impl Tree {
     /// Get all branches of a tree (including nested ones)
-    pub(crate) fn branches(&self) -> Vec<&TBranch> {
+    pub fn branches(&self) -> Vec<&TBranch> {
         self.fbranches
             .iter()
             .flat_map(|b| vec![b].into_iter().chain(b.branches().into_iter()))
@@ -195,7 +195,6 @@ pub fn ttree<'s>(i: &'s [u8], context: &'s Context) -> IResult<&'s [u8], Tree> {
     let fuserinfo = fuserinfo.map(Pointer);
     let fbranchref = fbranchref.map(Pointer);
 
-    println!("parsed tree");
     Ok((
         i,
         Tree {

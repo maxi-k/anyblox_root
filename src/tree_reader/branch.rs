@@ -66,7 +66,7 @@ impl TBranch {
     }
 
     /// Access to the `Containers` containing the data of this branch
-    pub(crate) fn containers(&self) -> &[Container] {
+    pub fn containers(&self) -> &[Container] {
         &self.containers
     }
 
@@ -123,7 +123,7 @@ impl TBranch {
         P: Fn(&[u8]) -> IResult<&[u8], T>,
     {
         stream::iter(self.containers().to_owned())
-            .then(|basket| async move { basket.raw_data().await.unwrap() })
+            .then(|basket| async move { basket.raw_data().unwrap() })
             .map(move |(n_events_in_basket, buffer)| {
                 // Parse the entire basket buffer; if something is left over its just junk
                 let x = count(&p, n_events_in_basket as usize)(&buffer);
@@ -134,6 +134,32 @@ impl TBranch {
                 stream::iter(events)
             })
             .flatten()
+    }
+
+    pub fn iterate_fixed_size<P, T, F>(&self, parser: P, consumer: F)
+        where
+            P: Fn(&[u8]) -> IResult<&[u8], T>,
+            F: Fn(T, usize) -> bool {
+        let mut i = 0;
+        let mut j = 0;
+       for c in self.containers().to_owned() {
+           let (n_elems, buffer) = c.raw_data().unwrap();
+           println!("Container {}", i);
+           let res = count(&parser, n_elems as usize)(&buffer);
+           match res {
+               Ok((_rest, output)) => {
+                   println!("  parsed {} for container {}", n_elems, i);
+                   for o in output {
+                       if !consumer(o, j) {
+                           return;
+                       }
+                       j += 1;
+                   }
+               },
+               Err(e) => panic!("Parser failed unexpectedly {:?}", e),
+           }
+           i += 1;
+       }
     }
 
     /// Iterator over the data of a column (`TBranch`) with a variable
@@ -150,7 +176,7 @@ impl TBranch {
     {
         let mut elems_per_event = el_counter.into_iter();
         stream::iter(self.containers().to_owned())
-            .then(|basket| async move { basket.raw_data().await.unwrap() })
+            .then(|basket| async move { basket.raw_data().unwrap() })
             .map(move |(n_events_in_basket, buffer)| {
                 let mut buffer = buffer.as_slice();
                 let mut events = Vec::with_capacity(n_events_in_basket as usize);
@@ -174,7 +200,6 @@ impl TBranch {
 /// `TBranchElements` are a subclass of `TBranch` if the content is an Object
 /// We ignore the extra information for now and just parse the TBranch"Header" in either case
 pub fn tbranch_hdr<'s>(raw: &Raw<'s>, ctxt: &'s Context) -> IResult<&'s [u8], TBranch> {
-    println!("parsing branch header");
     match raw.classinfo {
         "TBranchElement" | "TBranchObject" => {
             let (i, _ver) = be_u16(raw.obj)?;
@@ -182,7 +207,6 @@ pub fn tbranch_hdr<'s>(raw: &Raw<'s>, ctxt: &'s Context) -> IResult<&'s [u8], TB
         }
         "TBranch" => tbranch(raw.obj, ctxt),
         name => {
-            println!("oopsy branch {}", name);
             panic!("Unexpected Branch type {}", name);
         },
     }
@@ -190,7 +214,6 @@ pub fn tbranch_hdr<'s>(raw: &Raw<'s>, ctxt: &'s Context) -> IResult<&'s [u8], TB
 
 pub fn tbranch<'s>(i: &'s [u8], context: &'s Context) -> IResult<&'s [u8], TBranch> {
     let (i, ver) = verify(be_u16, |v| {[11, 12, 13].contains(v)})(i)?;
-    println!("parsing branch v{}", ver);
     let (i, tnamed) = length_value(checked_byte_count, tnamed)(i)?;
     let (i, _tattfill) = length_data(checked_byte_count)(i)?;
     let (i, fcompress) = be_i32(i)?;

@@ -6,7 +6,7 @@ use nom::*;
 use crate::core::*;
 
 #[derive(Debug, Clone)]
-pub(crate) enum Container {
+pub enum Container {
     /// Decompressed content of a `TBasket`
     InMemory(Vec<u8>),
     /// Filename, start byte, and len of a `TBasket` on disk
@@ -15,7 +15,7 @@ pub(crate) enum Container {
 
 impl Container {
     /// Return the number of entries and the data; reading it from disk if necessary
-    pub(crate) async fn raw_data(self) -> Result<(u32, Vec<u8>), Error> {
+    pub fn raw_data(self) -> Result<(u32, Vec<u8>), Error> {
         let buf = match self {
             Container::InMemory(buf) => buf,
             Container::OnDisk(source, seek, len) => source.fetch(seek, len)?,

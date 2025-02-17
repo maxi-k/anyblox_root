@@ -103,7 +103,6 @@ where
     F: Fn(&Raw<'s>, &'s Context) -> nom::IResult<&'s [u8], O>,
 {
     let (i, _ver) = be_u16(i)?;
-    println!("parsing obj array v{}", _ver);
     let (i, _tobj) = tobject(i)?;
     let (i, _name) = c_string(i)?;
     let (i, size) = be_i32(i)?;

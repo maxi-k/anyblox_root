@@ -1,6 +1,8 @@
 use std::{path::Path};
 use anyroot::*;
+use futures::StreamExt;
 use std::env;
+use nom::number::complete::*; // number parsing
 
 // ROOT file format
 // from https://github.com/root-project/root/blob/master/io/io/src/TFile.cxx
@@ -56,6 +58,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let branches = tree.branch_names_and_types();
     for (name, types) in branches {
         println!("{}: {:?}", name, types);
+    }
+    loop {
+        println!("pick a f64 branch (column) to print or 'exit' to exit");
+        println!("> ");
+        // read name from stdin
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+        if input.trim() == "exit" {
+            break;
+        }
+        match tree.branch_by_name(&input.trim()) {
+            Ok(branch) => {
+                branch.iterate_fixed_size(|i| be_f64(i), |item, idx| {
+                    println!("item: {:?}", item);
+                    return idx < 10;
+                });
+            },
+            Err(e) => {
+                println!("Branch not found: {}", e);
+            }
+        }
     }
     return Ok(());
 }

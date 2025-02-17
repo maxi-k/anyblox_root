@@ -25,7 +25,6 @@ pub struct TLeaf {
 
 impl TLeaf {
     pub fn parse<'s>(i: &'s [u8], context: &'s Context, c_name: &str) -> IResult<&'s [u8], Self> {
-    println!("leaf");
         TLeafVariant::parse(i, context, c_name).map(|(i, var)| (i, Self { variant: var }))
     }
 
@@ -51,7 +50,6 @@ enum TLeafVariant {
 
 impl TLeafVariant {
     fn parse<'s>(i: &'s [u8], context: &'s Context, c_name: &str) -> IResult<&'s [u8], Self> {
-        println!("Parsing leaf of type {}", c_name);
         match c_name {
             "TLeafB" => TLeafB::parse(i, context).map(|(i, l)| (i, TLeafVariant::TLeafB(l))),
             "TLeafS" => TLeafS::parse(i, context).map(|(i, l)| (i, TLeafVariant::TLeafS(l))),
