@@ -90,6 +90,16 @@ pub struct Tree {
 }
 
 impl Tree {
+
+    /// Number of tuples in the tree
+    pub fn entries(&self) -> i64 {
+        self.fentries
+    }
+
+    pub fn branch_count(&self) -> usize {
+        self.fbranches.len()
+    }
+
     /// Get all branches of a tree (including nested ones)
     pub fn branches(&self) -> Vec<&TBranch> {
         self.fbranches

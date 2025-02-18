@@ -181,6 +181,7 @@ fn decode_reader<'s>(bytes: &'s [u8], magic: &[u8]) -> nom::IResult<&'s [u8], Ve
 pub fn decompress(input: &[u8]) -> nom::IResult<&[u8], Vec<u8>> {
     let (input, magic) = take(2usize)(input)?;
     let (input, _header) = take(7usize)(input)?;
+    // println!("decompressing input w/ magic: {:?}", magic);
     decode_reader(input, magic)
 }
 

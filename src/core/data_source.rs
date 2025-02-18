@@ -16,6 +16,8 @@ pub struct Source(SourceInner);
 enum SourceInner {
     /// A local source, i.e. a file on disc.
     Local(PathBuf),
+    /// An in-memory (e.g., mmaped) region of data
+    InMem(&'static [u8]),
 }
 
 impl Source {
@@ -32,9 +34,14 @@ impl Source {
                 f.read_exact(&mut buf)?;
                 Ok(buf)
             }
+            SourceInner::InMem(ref data) =>  {
+                // TODO copies stuff
+                Ok(data.to_vec())
+            }
         }
     }
 }
+
 
 // Disallow the construction of a local source object on wasm since
 // wasm does not have a (proper) file system.
@@ -49,5 +56,12 @@ impl From<&Path> for Source {
 impl From<PathBuf> for Source {
     fn from(path_buf: PathBuf) -> Self {
         Self(SourceInner::Local(path_buf))
+    }
+}
+
+// allow construction from slices
+impl From<&'static [u8]> for Source {
+    fn from(buf: &'static [u8]) -> Self {
+        Self(SourceInner::InMem(buf))
     }
 }

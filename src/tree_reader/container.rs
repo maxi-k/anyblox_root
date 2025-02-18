@@ -47,6 +47,7 @@ fn tbasket2vec(input: &[u8]) -> IResult<&[u8], (u32, Vec<u8>)> {
     let (input, _flag) = be_i8(input)?;
     let (input, buf) = rest(input)?;
     let buf = if hdr.uncomp_len as usize > buf.len() {
+        // println!("decompressing container!");
         decompress(buf).unwrap().1
     } else {
         buf.to_vec()

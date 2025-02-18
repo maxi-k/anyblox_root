@@ -75,6 +75,7 @@ pub fn tkey(input: &[u8]) -> nom::IResult<&[u8], TKey> {
     let (input, hdr) = tkey_header(input)?;
     let (input, obj) = take(hdr.total_size - hdr.key_len as u32)(input)?;
     let obj = if hdr.uncomp_len as usize > obj.len() {
+        println!("decompressing tkey!");
         decompress(obj).unwrap().1
     } else {
         obj.to_vec()

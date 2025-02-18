@@ -64,6 +64,10 @@ impl TBranch {
         }
     }
 
+    pub fn entries(&self) -> i64 {
+        self.fentries
+    }
+
     /// Access to the `Containers` containing the data of this branch
     pub fn containers(&self) -> &[Container] {
         &self.containers
@@ -98,7 +102,7 @@ impl TBranch {
                    println!("  parsed {} for container {}", n_elems, i);
                    for o in output {
                        if !consumer(o, j) {
-                           return;
+                           break; // return
                        }
                        j += 1;
                    }

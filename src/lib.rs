@@ -20,8 +20,8 @@ pub mod test_utils;
 mod tests;
 pub mod tree_reader;
 
-// Contains the stream_zip macro
-pub mod utils;
+// anyblox-specific
+pub mod anyblox;
 
 pub use crate::core::{FileItem, RootFile, Source};
 

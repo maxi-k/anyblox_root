@@ -56,9 +56,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("File: {:?}", rf);
     let tree = rf.items()[0].as_tree()?;
     let branches = tree.branch_names_and_types();
+
+    println!("tree entries: {}", tree.entries());
+
+    // break before printing lots
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
     for (name, types) in branches {
         println!("{}: {:?}", name, types);
     }
+    // print branch data itself
     loop {
         println!("pick a f64 branch (column) to print or 'exit' to exit");
         println!("> ");
@@ -70,10 +77,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         match tree.branch_by_name(&input.trim()) {
             Ok(branch) => {
-                branch.iterate_fixed_size(|i| be_f64(i), |item, idx| {
-                    println!("item: {:?}", item);
-                    return idx < 10;
-                });
+                println!("branch with {} containers and {} items overall ", branch.containers().len(), branch.entries());
+                let mut cnt_sum : usize = 0;
+                let mut cnt_min : usize = usize::MAX;
+                let mut cnt_max : usize = 0;
+                for container in branch.containers() {
+                    let (cnt, _data) = container.clone().raw_data().unwrap();
+                    let c = cnt as usize;
+                    cnt_sum += c;
+                    cnt_min = cnt_min.min(c);
+                    cnt_max = cnt_max.max(c);
+                }
+                println!("container stats: sum: {}, min: {}, max: {}, avg {}", cnt_sum, cnt_min, cnt_max, cnt_sum / branch.containers().len());
+                // branch.iterate_fixed_size(|i| be_f64(i), |item, idx| {
+                //     println!("item: {:?}", item);
+                //     return idx < 10;
+                // });
             },
             Err(e) => {
                 println!("Branch not found: {}", e);
