@@ -44,6 +44,7 @@ use nom::number::complete::*; // number parsing
 // ..->..          | Title     | Title of the object
 // ----->          | DATA      | Data bytes associated to the object
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     // RootFile::new("../b2hhh.zstd.root");
@@ -82,3 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     return Ok(());
 }
+
+// dummy main for wasm
+#[cfg(target_arch = "wasm32")]
+fn main() {}
