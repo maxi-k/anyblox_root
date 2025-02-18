@@ -101,6 +101,12 @@ struct ColumnCache {
     prev_basket_data: Vec<u8>
 }
 
+// issue: with ~3k containers and different sizes per tbranch,
+// there will be multiple kb of metadata
+// new plan:
+// - parse all the container headers in all tbranches
+// - save file offsets, tuple counts to metadata header
+// - decode_batch can reference that, doesn't need to keep it in thread-local state
 #[derive(Debug)]
 struct DecoderCache {
     prev_ttree_id: u32,
