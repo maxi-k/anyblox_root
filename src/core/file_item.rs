@@ -38,12 +38,13 @@ impl FileItem {
 
         let buf = if self.tkey_hdr.total_size < self.tkey_hdr.uncomp_len {
             // Decompress the read buffer; buf is Vec<u8>
-            println!("decompressing fileitem buffer!");
+            println!("decompressing fileitem buffer of length {}MB", len/ 1024/1024);
             let (_, buf) = decompress(comp_buf.as_slice()).unwrap();
             buf
         } else {
             comp_buf
         };
+        println!("inmem fileitem buffer of length {}MB", buf.len()/ 1024/1024);
         Ok(buf)
     }
 

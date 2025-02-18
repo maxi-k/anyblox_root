@@ -107,6 +107,7 @@ impl Tree {
             .flat_map(|b| vec![b].into_iter().chain(b.branches().into_iter()))
             .collect()
     }
+
     /// Get all the branch names and types (including nested ones) of this tree
     /// The first element is the name, the second one is the type
     pub fn branch_names_and_types(&self) -> Vec<(String, Vec<String>)> {

@@ -92,7 +92,6 @@ impl DecoderFileState {
             ttree_end_tids: tids
         }
     }
-
 }
 
 #[derive(Debug)]
