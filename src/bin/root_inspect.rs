@@ -1,6 +1,5 @@
 use std::{path::Path};
 use anyroot::*;
-use futures::StreamExt;
 use std::env;
 use nom::number::complete::*; // number parsing
 

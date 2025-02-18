@@ -15,16 +15,12 @@ pub use self::tree::{ttree, Tree};
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use std::path::PathBuf;
-    use tokio;
-
     use crate::core::RootFile;
 
-    #[tokio::test]
-    async fn simple_tree() {
+    #[test]
+    fn simple_tree() {
         let path = PathBuf::from("./src/test_data/simple.root");
-        let f = RootFile::new(path.as_path())
-            .await
-            .expect("Failed to open file");
-        f.items()[0].as_tree().await.unwrap();
+        let f = RootFile::new(path.as_path()).expect("Failed to open file");
+        f.items()[0].as_tree().unwrap();
     }
 }

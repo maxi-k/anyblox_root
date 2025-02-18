@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use futures::prelude::*;
 use nom::{
     combinator::{verify, cond},
     multi::{count, length_data, length_value},
@@ -84,58 +83,6 @@ impl TBranch {
             .collect()
     }
 
-    /// Create an iterator over the data of a column (`TBranch`) with a
-    /// constant number of element per entry (or at least not a
-    /// variable number of entries which depends on an external list of
-    /// indices. For the latter case see `as_var_size_iterator`).
-    ///
-    /// # Example
-    /// ```
-    /// extern crate failure;
-    /// extern crate nom;
-    /// extern crate root_io;
-    /// use futures::StreamExt;
-    ///
-    /// use std::path::Path;
-    /// use nom::number::complete::be_i32;
-    ///
-    /// use root_io::tree_reader::Tree;
-    /// use root_io::RootFile;
-    ///
-    /// #[tokio::main]
-    ///# async fn main
-    ///
-    ///# () {
-    ///     let path = Path::new("./src/test_data/simple.root");
-    ///     let f = RootFile::new(path).await.expect("Failed to open file");
-    ///     let tree = f.items()[0].as_tree().await.unwrap();
-    ///     let numbers = tree
-    ///         .branch_by_name("one").unwrap()
-    ///         // Must pass parser as closure
-    ///         .as_fixed_size_iterator(|i| be_i32(i));
-    ///     numbers.for_each(|n| async move {
-    ///         println!("All the numbers of this branch{:?}", n);
-    ///     }).await;
-    ///# }
-    /// ```
-    pub fn as_fixed_size_iterator<T, P>(&self, p: P) -> impl Stream<Item = T>
-    where
-        P: Fn(&[u8]) -> IResult<&[u8], T>,
-    {
-        stream::iter(self.containers().to_owned())
-            .then(|basket| async move { basket.raw_data().unwrap() })
-            .map(move |(n_events_in_basket, buffer)| {
-                // Parse the entire basket buffer; if something is left over its just junk
-                let x = count(&p, n_events_in_basket as usize)(&buffer);
-                let events = match x {
-                    Ok((_rest, output)) => output,
-                    Err(e) => panic!("Parser failed unexpectedly {:?}", e),
-                };
-                stream::iter(events)
-            })
-            .flatten()
-    }
-
     pub fn iterate_fixed_size<P, T, F>(&self, parser: P, consumer: F)
         where
             P: Fn(&[u8]) -> IResult<&[u8], T>,
@@ -162,39 +109,92 @@ impl TBranch {
        }
     }
 
-    /// Iterator over the data of a column (`TBranch`) with a variable
-    /// number of elements per entry.  See the file
-    /// [`read_esd.rs`](https://github.com/cbourjau/root-io/blob/master/src/tests/read_esd.rs)
-    /// in the repository for a comprehensive example
-    pub fn as_var_size_iterator<T, P>(
-        &self,
-        p: P,
-        el_counter: Vec<u32>,
-    ) -> impl Stream<Item = Vec<T>>
-    where
-        P: Fn(&[u8]) -> IResult<&[u8], T>,
-    {
-        let mut elems_per_event = el_counter.into_iter();
-        stream::iter(self.containers().to_owned())
-            .then(|basket| async move { basket.raw_data().unwrap() })
-            .map(move |(n_events_in_basket, buffer)| {
-                let mut buffer = buffer.as_slice();
-                let mut events = Vec::with_capacity(n_events_in_basket as usize);
-                for _ in 0..n_events_in_basket {
-                    if let Some(n_elems_in_event) = elems_per_event.next() {
-                        match count(&p, n_elems_in_event as usize)(buffer) {
-                            Ok((rest, output)) => {
-                                buffer = rest;
-                                events.push(output)
-                            }
-                            Err(e) => panic!("Parser failed unexpectedly {:?}", e),
-                        }
-                    }
-                }
-                stream::iter(events)
-            })
-            .flatten()
-    }
+
+    // / Create an iterator over the data of a column (`TBranch`) with a
+    // / constant number of element per entry (or at least not a
+    // / variable number of entries which depends on an external list of
+    // / indices. For the latter case see `as_var_size_iterator`).
+    // /
+    // / # Example
+    // / ```
+    // / extern crate failure;
+    // / extern crate nom;
+    // / extern crate root_io;
+    // / use futures::StreamExt;
+    // /
+    // / use std::path::Path;
+    // / use nom::number::complete::be_i32;
+    // /
+    // / use root_io::tree_reader::Tree;
+    // / use root_io::RootFile;
+    // /
+    // / #[tokio::main]
+    // /# async fn main
+    // /
+    // /# () {
+    // /     let path = Path::new("./src/test_data/simple.root");
+    // /     let f = RootFile::new(path).await.expect("Failed to open file");
+    // /     let tree = f.items()[0].as_tree().await.unwrap();
+    // /     let numbers = tree
+    // /         .branch_by_name("one").unwrap()
+    // /         // Must pass parser as closure
+    // /         .as_fixed_size_iterator(|i| be_i32(i));
+    // /     numbers.for_each(|n| async move {
+    // /         println!("All the numbers of this branch{:?}", n);
+    // /     }).await;
+    // /# }
+    // / ```
+    // pub fn as_fixed_size_iterator<T, P>(&self, p: P) -> impl Stream<Item = T>
+    // where
+    //     P: Fn(&[u8]) -> IResult<&[u8], T>,
+    // {
+    //     stream::iter(self.containers().to_owned())
+    //         .then(|basket| async move { basket.raw_data().unwrap() })
+    //         .map(move |(n_events_in_basket, buffer)| {
+    //             // Parse the entire basket buffer; if something is left over its just junk
+    //             let x = count(&p, n_events_in_basket as usize)(&buffer);
+    //             let events = match x {
+    //                 Ok((_rest, output)) => output,
+    //                 Err(e) => panic!("Parser failed unexpectedly {:?}", e),
+    //             };
+    //             stream::iter(events)
+    //         })
+    //         .flatten()
+    // }
+    //
+    // / Iterator over the data of a column (`TBranch`) with a variable
+    // / number of elements per entry.  See the file
+    // / [`read_esd.rs`](https://github.com/cbourjau/root-io/blob/master/src/tests/read_esd.rs)
+    // / in the repository for a comprehensive example
+    // pub fn as_var_size_iterator<T, P>(
+    //     &self,
+    //     p: P,
+    //     el_counter: Vec<u32>,
+    // ) -> impl Stream<Item = Vec<T>>
+    // where
+    //     P: Fn(&[u8]) -> IResult<&[u8], T>,
+    // {
+    //     let mut elems_per_event = el_counter.into_iter();
+    //     stream::iter(self.containers().to_owned())
+    //         .then(|basket| async move { basket.raw_data().unwrap() })
+    //         .map(move |(n_events_in_basket, buffer)| {
+    //             let mut buffer = buffer.as_slice();
+    //             let mut events = Vec::with_capacity(n_events_in_basket as usize);
+    //             for _ in 0..n_events_in_basket {
+    //                 if let Some(n_elems_in_event) = elems_per_event.next() {
+    //                     match count(&p, n_elems_in_event as usize)(buffer) {
+    //                         Ok((rest, output)) => {
+    //                             buffer = rest;
+    //                             events.push(output)
+    //                         }
+    //                         Err(e) => panic!("Parser failed unexpectedly {:?}", e),
+    //                     }
+    //                 }
+    //             }
+    //             stream::iter(events)
+    //         })
+    //         .flatten()
+    // }
 }
 
 /// `TBranchElements` are a subclass of `TBranch` if the content is an Object
