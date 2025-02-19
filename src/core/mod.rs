@@ -23,3 +23,4 @@ pub use self::data_source::Source;
 pub use self::file::RootFile;
 pub use self::file::Directory;
 pub use self::file_item::FileItem;
+pub use self::types::Tid;

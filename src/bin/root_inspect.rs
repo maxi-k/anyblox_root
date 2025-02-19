@@ -1,5 +1,7 @@
 use std::{path::Path};
 use anyroot::*;
+use anyroot::anyblox::*;
+use anyroot::core::Tid;
 use std::env;
 use nom::number::complete::*; // number parsing
 
@@ -58,6 +60,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let branches = tree.branch_names_and_types();
 
     println!("tree entries: {}", tree.entries());
+    println!("searching for row groups...");
+    let rgs = anyblox::RowGroup::find_rowgroups(&tree);
 
     // break before printing lots
     let mut input = String::new();
@@ -77,7 +81,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         match tree.branch_by_name(&input.trim()) {
             Ok(branch) => {
+                // println!("branch {:?}", branch);
                 println!("branch with {} containers and {} items overall ", branch.containers().len(), branch.entries());
+                let container_lengths = branch.container_start_indices().iter().scan(0, |acc, &x| {
+                    let prev = *acc;
+                    *acc = x;
+                    return Some(x - prev);
+                }).collect::<Vec<Tid>>();
+                println!("container start idx: {:?}", branch.container_start_indices());
+                println!("container lengths: {:?}", container_lengths);
+                continue;
+
                 let mut cnt_sum : usize = 0;
                 let mut cnt_min : usize = usize::MAX;
                 let mut cnt_max : usize = 0;

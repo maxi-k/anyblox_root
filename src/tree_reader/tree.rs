@@ -52,7 +52,7 @@ pub struct Tree {
     /// Total number of bytes in all branches after compression
     fzipbytes: i64,
     /// Number of autosaved bytes
-    fsavedbytes: i64,
+    pub fsavedbytes: i64,
     /// Number of autoflushed bytes
     fflushedbytes: Option<i64>,
     /// Tree weight (see TTree::SetWeight)
@@ -106,6 +106,10 @@ impl Tree {
             .iter()
             .flat_map(|b| vec![b].into_iter().chain(b.branches().into_iter()))
             .collect()
+    }
+
+    pub fn branch_at(&self, idx: usize) -> Option<&TBranch> {
+        self.fbranches.get(idx)
     }
 
     /// Get all the branch names and types (including nested ones) of this tree

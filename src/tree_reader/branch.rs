@@ -48,8 +48,8 @@ pub struct TBranch {
     fbranches: Vec<TBranch>,
     /// -> List of leaves of this branch (TODO: Parse to TLeafC/I/F..)
     fleaves: Vec<TLeaf>,
-    /// Table of first entry in each basket
-    fbasketentry: Vec<i64>,
+    /// Table of first entry INDEX in each basket
+    fbasketentry: Vec<Tid>,
     containers: Vec<Container>,
 }
 
@@ -73,12 +73,16 @@ impl TBranch {
         &self.containers
     }
 
+    pub fn container_start_indices(&self) -> &[Tid] {
+        &self.fbasketentry
+    }
+
     /// The name of this branch
     pub fn name(&self) -> String {
         self.name.to_owned()
     }
 
-    /// The type(s) of the elements in this branch For some reason,
+    /// The type(s) of the elements in this branch. For some reason,
     /// there may be situations where a branch has several leaves and thus types.
     pub fn element_types(&self) -> Vec<String> {
         self.fleaves
@@ -257,7 +261,7 @@ pub fn tbranch<'s>(i: &'s [u8], context: &'s Context) -> IResult<&'s [u8], TBran
         .into_iter()
         .take(nbaskets)
         .map(|val| val as usize);
-    let fbasketentry = fbasketentry.into_iter().take(nbaskets).collect();
+    let fbasketentry = fbasketentry.into_iter().map(|e| e as Tid).take(nbaskets).collect();
     let fbasketseek = fbasketseek.into_iter().take(nbaskets);
     let source = if ffilename.is_empty() {
         context.source.to_owned()
@@ -267,6 +271,7 @@ pub fn tbranch<'s>(i: &'s [u8], context: &'s Context) -> IResult<&'s [u8], TBran
     let containers_disk = fbasketseek
         .zip(fbasketbytes)
         .map(|(seek, len)| Container::OnDisk(source.clone(), seek, len as u64));
+    // let containers = Vec::new();
     let containers = fbaskets.chain(containers_disk).collect();
     Ok((
         i,

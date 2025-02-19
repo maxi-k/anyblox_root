@@ -6,6 +6,7 @@ use nom::HexDisplay;
 
 /// Absolute point in file to seek data
 pub(crate) type SeekPointer = u64;
+pub type Tid = i32;
 
 bitflags! {
     pub(crate) struct Flags: u32 {

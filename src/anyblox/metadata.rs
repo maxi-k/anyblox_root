@@ -2,8 +2,10 @@ use crate::core::{
     RootFile,
     Directory,
     TKeyHeader,
+    types::{Tid}
 };
 use crate::tree_reader::{Tree};
+
 use std::cmp::Ordering;
 use bitvec::prelude::*;
 use bitvec::view::BitView;
@@ -45,10 +47,6 @@ use bitvec::view::BitView;
 // .e.g., a LZ4-compressed tree can contain XZ-compressed Containers etc.,
 // as defined by the 'compression' header of TKey objects (see, for example, `tbasket2vec` function)
 
-
-#[allow(non_camel_case_types)]
-type Tid = i32;
-
 #[derive(Debug)]
 struct DecoderFileState {
     // / file directory
@@ -57,19 +55,19 @@ struct DecoderFileState {
     // keylist: TKeyHeader,
     // / ttree tuple start for binary search
     file: RootFile,
-    /// XXX how to ensure allocation is in state page?
-    ttree_end_tids: Vec<Tid>,
+    // XXX how to ensure allocation is in state page?
+    // ttree_end_tids: Vec<Tid>,
 }
 
 impl DecoderFileState {
-    /// find index of tree containing tuple id
-    pub fn find_tree_containing_tid(&self, tuple: Tid) -> Option<usize> {
-        // lower bound
-        self.ttree_end_tids.binary_search_by(|element| match element.cmp(&tuple) {
-            Ordering::Equal => Ordering::Greater,
-            ord => ord,
-        }).ok()
-    }
+    // /// find index of tree containing tuple id
+    // pub fn find_tree_containing_tid(&self, tuple: Tid) -> Option<usize> {
+    //     // lower bound
+    //     self.ttree_end_tids.binary_search_by(|element| match element.cmp(&tuple) {
+    //         Ordering::Equal => Ordering::Greater,
+    //         ord => ord,
+    //     }).ok()
+    // }
 
     pub fn tree_at(&self, uid: u32) -> Tree {
         self.file.items()[uid as usize].as_tree().unwrap()
@@ -80,16 +78,18 @@ impl DecoderFileState {
             Ok(f) => f,
             _ => panic!("failed to parse root file")
         };
-        let items = file.items();
-        let mut tids: Vec<Tid> = items.iter().map(|item| {item.as_tree().unwrap().entries() as Tid }).collect();
-        let mut cumsum = 0;
-        for x in &mut tids {
-            cumsum += *x;
-            *x = cumsum;
-        }
+        // only one ttree supported for now
+        assert!(file.items().len() == 1);
+        // let items = file.items();
+        // let mut tids: Vec<Tid> = items.iter().map(|item| {item.as_tree().unwrap().entries() as Tid }).collect();
+        // let mut cumsum = 0;
+        // for x in &mut tids {
+        //     cumsum += *x;
+        //     *x = cumsum;
+        // }
         Self {
             file,
-            ttree_end_tids: tids
+            // ttree_end_tids: tids
         }
     }
 }
@@ -109,7 +109,7 @@ struct ColumnCache {
 // - decode_batch can reference that, doesn't need to keep it in thread-local state
 #[derive(Debug)]
 struct DecoderCache {
-    prev_ttree_id: u32,
+    // prev_ttree_id: u32,
     prev_columns: u64,
     prev_tid_end: Tid,
     /// XXX how to ensure allocation is in state page?
@@ -118,10 +118,11 @@ struct DecoderCache {
 
 impl DecoderCache {
     pub fn new(global: &DecoderFileState, start_tuple: Tid, tuple_count: Tid, columns: u64) -> Self {
-        let ttree_id = match global.find_tree_containing_tid(start_tuple) {
-            Some(x) => x as u32,
-            None => panic!("failed to find tree containing tuple " )
-        };
+        let ttree_id = 0; // only one ttree supported for now
+        // let ttree_id = match global.find_tree_containing_tid(start_tuple) {
+        //     Some(x) => x as u32,
+        //     None => panic!("failed to find tree containing tuple " )
+        // };
 
         let tree = global.tree_at(ttree_id);
         let bitmask = Self::col_bitmask(&columns);
@@ -136,7 +137,7 @@ impl DecoderCache {
             cols.push(ColumnCache{prev_basket_id: 0, prev_basket_data: Vec::new()});
         }
 
-        DecoderCache{prev_ttree_id: ttree_id, prev_columns: columns, prev_tid_end: start_tuple + tuple_count, prev_columns_data: cols}
+        DecoderCache{prev_columns: columns, prev_tid_end: start_tuple + tuple_count, prev_columns_data: cols}
     }
 
     pub fn col_bitmask<'a>(columns: &'a u64) -> &'a BitSlice<u64, Msb0> {

@@ -23,7 +23,7 @@ pub mod tree_reader;
 // anyblox-specific
 pub mod anyblox;
 
-pub use crate::core::{FileItem, RootFile, Source};
+pub use crate::core::{FileItem, RootFile, Source, Tid};
 
 /// Offset when using Context; should be in `Context`, maybe?
 const MAP_OFFSET: u64 = 2;

@@ -11,6 +11,7 @@ mod leafs;
 mod tree;
 
 pub use self::tree::{ttree, Tree};
+pub use self::container::Container;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
