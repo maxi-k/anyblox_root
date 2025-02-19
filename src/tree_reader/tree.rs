@@ -122,6 +122,10 @@ impl Tree {
             .collect()
     }
 
+    pub fn branch_index(&self, name: &str) -> Option<usize> {
+        self.fbranches.iter().position(|b| b.name == name)
+    }
+
     pub fn branch_by_name(&self, name: &str) -> Result<&TBranch, Error> {
         self.branches()
             .into_iter()

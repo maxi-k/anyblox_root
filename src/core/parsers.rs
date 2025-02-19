@@ -185,6 +185,40 @@ pub fn decompress(input: &[u8]) -> nom::IResult<&[u8], Vec<u8>> {
     decode_reader(input, magic)
 }
 
+fn decode_reader_into<'s, 'o>(bytes: &'s [u8], mut output: &'o mut [u8], magic: &[u8]) -> nom::IResult<&'s [u8], usize> {
+    match magic {
+        b"ZL" => map_res(rest, |bytes| {
+            let mut decoder = ZlibDecoder::new(bytes);
+            let nbytes = decoder.read(output)?;
+            Ok::<_, Error>(nbytes)
+        })(bytes),
+        b"XZ" => map_res(rest, |bytes| {
+            let mut reader = std::io::BufReader::new(bytes);
+            xz_decompress(&mut reader, &mut output).unwrap();
+            Ok::<_, Error>(output.len()) // XXX correct?
+        })(bytes),
+        b"L4" => {
+            let (bytes, _checksum) = be_u64(bytes)?;
+            map_res(rest, |bytes| {
+                // XXX this *sucks* but the lz4 library takes *a fixed vector type* not a *slice* as
+                // output argument :rolls_eyes:
+                let vec = lz4_decompress(bytes)?;
+                // copy vec to output
+                output.copy_from_slice(&vec);
+                Ok::<_, Error>(vec.len())
+            })(bytes)
+        }
+        _ => panic!(), // m => return Err(format_err!("Unsupported compression format `{}`", m)),
+    }
+}
+
+pub fn decompress_into<'s, 'o>(input: &'s [u8], output: &'o mut [u8]) -> nom::IResult<&'s [u8], usize> {
+    let (input, magic) = take(2usize)(input)?;
+    let (input, _header) = take(7usize)(input)?;
+    // println!("decompressing input w/ magic: {:?}", magic);
+    decode_reader_into(input, output, magic)
+}
+
 /// Parse a null terminated string
 pub fn c_string(i: &[u8]) -> nom::IResult<&[u8], &str> {
     let (i, s) = map_res(take_until(b"\x00".as_ref()), str::from_utf8)(i)?;

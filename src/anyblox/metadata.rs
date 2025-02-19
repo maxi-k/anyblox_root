@@ -5,6 +5,7 @@ use crate::core::{
     types::{Tid}
 };
 use crate::tree_reader::{Tree};
+use crate::anyblox::RowGroup;
 
 use std::cmp::Ordering;
 use bitvec::prelude::*;
@@ -55,8 +56,10 @@ struct DecoderFileState {
     // keylist: TKeyHeader,
     // / ttree tuple start for binary search
     file: RootFile,
-    // XXX how to ensure allocation is in state page?
+    tuples: Tid,
     // ttree_end_tids: Vec<Tid>,
+    // XXX how to ensure allocation is in state page?
+    rowgroups: Vec<RowGroup>
 }
 
 impl DecoderFileState {
@@ -87,8 +90,11 @@ impl DecoderFileState {
         //     cumsum += *x;
         //     *x = cumsum;
         // }
+        let tree = file.items().first().unwrap().as_tree().unwrap();
         Self {
             file,
+            tuples: tree.entries() as Tid,
+            rowgroups: RowGroup::find_rowgroups(&tree),
             // ttree_end_tids: tids
         }
     }

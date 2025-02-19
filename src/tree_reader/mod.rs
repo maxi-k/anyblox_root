@@ -11,7 +11,7 @@ mod leafs;
 mod tree;
 
 pub use self::tree::{ttree, Tree};
-pub use self::container::Container;
+pub use self::container::{Container, BasketHeader, basket_header};
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {

@@ -35,30 +35,79 @@ impl Container {
     // }
 }
 
+pub struct BasketHeader<'a> {
+    pub header: TKeyHeader,
+    pub version: u16,
+    pub buf_size: u32,
+    pub entry_size: u32,
+    pub n_entry_buf: u32,
+    pub last: u32,
+    pub flag: i8,
+    pub buf: &'a [u8],
+}
+
+impl BasketHeader<'_> {
+    pub fn useful_bytes(&self) -> usize {
+        // Not the whole buffer is filled, no, no, no, that
+        // would be to easy! Its only filled up to `last`,
+        // whereby we have to take the key_len into account...
+        (self.last - self.header.key_len as u32) as usize
+
+    }
+
+    pub fn is_compressed(&self) -> bool {
+        self.header.uncomp_len as usize > self.buf.len()
+    }
+
+    pub fn decode_into(&self, output: &mut [u8]) -> usize {
+        if self.is_compressed() {
+            let max_size = self.header.uncomp_len as usize;
+            let mut outbuf = &mut output[..max_size];
+            let nbyte = decompress_into(&self.buf, &mut outbuf).unwrap().1;
+            assert!(nbyte <= outbuf.len());
+            assert!(nbyte <= self.useful_bytes());
+        } else {
+            output.copy_from_slice(&self.buf[..self.useful_bytes()]);
+        }
+        self.useful_bytes()
+    }
+}
+
+pub fn basket_header(input: &[u8]) -> IResult<&[u8], BasketHeader> {
+    let (input, header) = tkey_header(input)?;
+    let (input, version) = be_u16(input)?;
+    let (input, buf_size) = be_u32(input)?;
+    let (input, entry_size) = be_u32(input)?;
+    let (input, n_entry_buf) = be_u32(input)?;
+    let (input, last) = be_u32(input)?;
+    let (input, flag) = be_i8(input)?;
+    let (input, buf) = rest(input)?;
+    Ok((input, BasketHeader {
+        header,
+        version,
+        buf_size,
+        entry_size,
+        n_entry_buf,
+        last,
+        flag,
+        buf
+    }))
+}
+
+
 /// Return a tuple indicating the number of elements in this basket
 /// and the content as a Vec<u8>
 fn tbasket2vec(input: &[u8]) -> IResult<&[u8], (u32, Vec<u8>)> {
-    let (input, hdr) = tkey_header(input)?;
-    let (input, _ver) = be_u16(input)?;
-    let (input, _buf_size) = be_u32(input)?;
-    let (input, _entry_size) = be_u32(input)?;
-    let (input, n_entry_buf) = be_u32(input)?;
-    let (input, last) = be_u32(input)?;
-    let (input, _flag) = be_i8(input)?;
-    let (input, buf) = rest(input)?;
-    let buf = if hdr.uncomp_len as usize > buf.len() {
+    let (input, hdr) = basket_header(input)?;
+    let buf = if hdr.header.uncomp_len as usize > hdr.buf.len() {
         // println!("decompressing container!");
-        decompress(buf).unwrap().1
+        decompress(hdr.buf).unwrap().1
     } else {
-        buf.to_vec()
+        hdr.buf.to_vec()
     };
-    // Not the whole buffer is filled, no, no, no, that
-    // would be to easy! Its only filled up to `last`,
-    // whereby we have to take the key_len into account...
-    let useful_bytes = (last - hdr.key_len as u32) as usize;
     Ok((
         input,
-        (n_entry_buf, buf.as_slice()[..useful_bytes].to_vec()),
+        (hdr.n_entry_buf, buf.as_slice()[..hdr.useful_bytes()].to_vec()),
     ))
 }
 

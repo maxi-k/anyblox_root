@@ -1,8 +1,16 @@
 use std::fmt::{Formatter, Debug};
 use crate::core::{
     types::{Tid},
+    tkey_header,
+    decompress
 };
-use crate::tree_reader::{Tree, Container};
+use crate::anyblox::parse::consume_count;
+use crate::tree_reader::{Tree, Container, BasketHeader, basket_header};
+
+use bitvec::prelude::*;
+use bitvec::view::BitView;
+use failure::Error;
+use nom::IResult;
 
 /// row groups are implicit in file format, we need to 'find' them
 /// by finding alignment points between containers (= column chunks)
@@ -101,5 +109,61 @@ impl RowGroup {
         }
         // return result
         rowgroups
+    }
+}
+
+pub struct DecompressedRowGroup {
+    start_tid: Tid,
+    count: Tid,
+    data: Vec<Vec<u8>>
+}
+
+impl DecompressedRowGroup {
+    pub fn new(mmap: &[u8], cols: u64, offsets: &RowGroup) -> Self {
+        let colmask = cols.view_bits::<Msb0>();
+        let allcols = offsets.containers.len();
+        let mut coldata = vec![Vec::new(); cols.count_ones() as usize];
+        for colid in 0..allcols {
+            if !colmask[colid] {
+                continue;
+            }
+            let meta = &offsets.containers[colid].iter().map(|(start, len)| {
+                let buf = &mmap[*start as usize..(*start + *len) as usize];
+                basket_header(buf).unwrap().1
+            }).collect::<Vec<_>>();
+            let totsize = meta.iter().fold(0usize, |acc, m| acc + m.header.uncomp_len as usize);
+            coldata[colid as usize] = vec![0u8; totsize];
+            let written = meta.iter().fold(0usize, |offset, m| {
+                let nbyte = m.decode_into(&mut coldata[colid as usize][offset..]);
+                offset + nbyte
+            });
+            assert!(written < totsize);
+        };
+        DecompressedRowGroup{
+            start_tid: offsets.start_tid,
+            count: offsets.count,
+            data: coldata
+        }
+    }
+
+    pub fn parse_col<F, P, G, T>(&self, col: usize, parser: P, mut consumer: G) -> Result<(), Error>
+    where P: Fn(&[u8]) -> IResult<&[u8], T>,
+          G: FnMut(usize, T) -> (),
+    {
+        let mut input: &[u8] = (&self.data[col][..]).clone();
+        for idx in 0..self.count {
+            let input_: &[u8] = input.clone();
+            match parser(input_) { // use nom parsers
+                Ok((i, o)) => {
+                    consumer(idx as usize, o);
+                    input = i;
+                },
+                Err(e) => {
+                    dbg!(e);
+                    return Err(failure::err_msg("parse error"));
+                }
+            }
+        }
+        Ok(())
     }
 }

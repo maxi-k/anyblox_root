@@ -4,6 +4,7 @@ use anyroot::anyblox::*;
 use anyroot::core::Tid;
 use std::env;
 use nom::number::complete::*; // number parsing
+use memmap::Mmap;
 
 // ROOT file format
 // from https://github.com/root-project/root/blob/master/io/io/src/TFile.cxx
@@ -62,6 +63,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("tree entries: {}", tree.entries());
     println!("searching for row groups...");
     let rgs = anyblox::RowGroup::find_rowgroups(&tree);
+    println!("found {} rowgroups in tree", rgs.len());
+
+    let file = std::fs::File::open(path).unwrap();
+    let mmap = unsafe { Mmap::map(&file).unwrap() };
 
     // break before printing lots
     let mut input = String::new();
@@ -79,34 +84,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if input.trim() == "exit" {
             break;
         }
+        let idx = tree.branch_index(&input.trim()).unwrap();
+        let decomp = DecompressedRowGroup::new(&mmap[..], u64::MAX, &rgs[idx]);
+
+        decomp.parse_col(idx, |i| be_f64(i), |idx, val| {
+            println!("{}: {}", idx, val);
+        });
+
         match tree.branch_by_name(&input.trim()) {
             Ok(branch) => {
                 // println!("branch {:?}", branch);
-                println!("branch with {} containers and {} items overall ", branch.containers().len(), branch.entries());
-                let container_lengths = branch.container_start_indices().iter().scan(0, |acc, &x| {
-                    let prev = *acc;
-                    *acc = x;
-                    return Some(x - prev);
-                }).collect::<Vec<Tid>>();
-                println!("container start idx: {:?}", branch.container_start_indices());
-                println!("container lengths: {:?}", container_lengths);
-                continue;
+                // println!("branch with {} containers and {} items overall ", branch.containers().len(), branch.entries());
+                // let container_lengths = branch.container_start_indices().iter().scan(0, |acc, &x| {
+                //     let prev = *acc;
+                //     *acc = x;
+                //     return Some(x - prev);
+                // }).collect::<Vec<Tid>>();
+                // println!("container start idx: {:?}", branch.container_start_indices());
+                // println!("container lengths: {:?}", container_lengths);
+                // continue;
 
-                let mut cnt_sum : usize = 0;
-                let mut cnt_min : usize = usize::MAX;
-                let mut cnt_max : usize = 0;
-                for container in branch.containers() {
-                    let (cnt, _data) = container.clone().raw_data().unwrap();
-                    let c = cnt as usize;
-                    cnt_sum += c;
-                    cnt_min = cnt_min.min(c);
-                    cnt_max = cnt_max.max(c);
-                }
-                println!("container stats: sum: {}, min: {}, max: {}, avg {}", cnt_sum, cnt_min, cnt_max, cnt_sum / branch.containers().len());
-                // branch.iterate_fixed_size(|i| be_f64(i), |item, idx| {
-                //     println!("item: {:?}", item);
-                //     return idx < 10;
-                // });
+                // let mut cnt_sum : usize = 0;
+                // let mut cnt_min : usize = usize::MAX;
+                // let mut cnt_max : usize = 0;
+                // for container in branch.containers() {
+                //     let (cnt, _data) = container.clone().raw_data().unwrap();
+                //     let c = cnt as usize;
+                //     cnt_sum += c;
+                //     cnt_min = cnt_min.min(c);
+                //     cnt_max = cnt_max.max(c);
+                // }
+                // println!("container stats: sum: {}, min: {}, max: {}, avg {}", cnt_sum, cnt_min, cnt_max, cnt_sum / branch.containers().len());
+
             },
             Err(e) => {
                 println!("Branch not found: {}", e);
