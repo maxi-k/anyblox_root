@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rf = RootFile::new(path)?;
     println!("File: {:?}", rf);
     let tree = rf.items()[0].as_tree()?;
-    let branches = tree.branch_names_and_types();
+    let branches = tree.main_branches();
 
     println!("tree entries: {}", tree.entries());
     println!("searching for row groups...");
@@ -71,12 +71,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // break before printing lots
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
-    for (name, types) in branches {
-        println!("{}: {:?}", name, types);
+    for b in branches.iter() {
+        println!("{}: {:?}", b.name(), b.element_types());
     }
     // print branch data itself
     loop {
-        println!("pick a f64 branch (column) to print or 'exit' to exit");
+        println!("pick one of {} f64 branch (column) to print or 'exit' to exit", branches.len());
         println!("> ");
         // read name from stdin
         let mut input = String::new();
@@ -85,14 +85,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
         let idx = tree.branch_index(&input.trim()).unwrap();
-        let decomp = DecompressedRowGroup::new(&mmap[..], u64::MAX, &rgs[idx]);
+        let decomp = DecompressedRowGroup::new(&mmap[..], u64::MAX, &rgs[0]);
 
-        decomp.parse_col(idx, |i| be_f64(i), |idx, val| {
+        decomp.parse_col(idx, |i| be_f64(i), |idx: usize, val: f64| {
             println!("{}: {}", idx, val);
-        });
+        })?;
+        break;
 
         match tree.branch_by_name(&input.trim()) {
             Ok(branch) => {
+                branch.iterate_fixed_size(|i| be_f64(i), |item, idx| {
+                    println!("item: {:?}", item);
+                    return idx < 10;
+                });
                 // println!("branch {:?}", branch);
                 // println!("branch with {} containers and {} items overall ", branch.containers().len(), branch.entries());
                 // let container_lengths = branch.container_start_indices().iter().scan(0, |acc, &x| {

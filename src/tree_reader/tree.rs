@@ -108,6 +108,10 @@ impl Tree {
             .collect()
     }
 
+    pub fn main_branches(&self) -> &[TBranch] {
+        self.fbranches.as_slice()
+    }
+
     pub fn branch_at(&self, idx: usize) -> Option<&TBranch> {
         self.fbranches.get(idx)
     }

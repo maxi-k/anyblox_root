@@ -134,7 +134,7 @@ impl DecoderCache {
         let bitmask = Self::col_bitmask(&columns);
         let colcount = columns.count_ones() as usize;
         let mut cols : Vec<ColumnCache> = Vec::with_capacity(colcount);
-        for (col, branch) in tree.branches().iter().enumerate() {
+        for (col, branch) in tree.main_branches().iter().enumerate() {
             if !bitmask[col] {
                 continue;
             }

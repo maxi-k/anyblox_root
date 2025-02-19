@@ -10,7 +10,7 @@ use crate::tree_reader::{Tree, Container, BasketHeader, basket_header};
 use bitvec::prelude::*;
 use bitvec::view::BitView;
 use failure::Error;
-use nom::IResult;
+use nom::{error::ParseError, IResult, Parser};
 
 /// row groups are implicit in file format, we need to 'find' them
 /// by finding alignment points between containers (= column chunks)
@@ -43,7 +43,7 @@ impl RowGroup {
     }
 
     pub fn find_rowgroups(t: &Tree) -> Vec<RowGroup> {
-        let branches = &t.branches();
+        let branches = &t.fbranches;
         let bcnt = t.branch_count();
         // result
         let mut rowgroups: Vec<RowGroup> = Vec::new();
@@ -137,7 +137,7 @@ impl DecompressedRowGroup {
                 let nbyte = m.decode_into(&mut coldata[colid as usize][offset..]);
                 offset + nbyte
             });
-            assert!(written < totsize);
+            assert!(written <= totsize);
         };
         DecompressedRowGroup{
             start_tid: offsets.start_tid,
@@ -146,20 +146,21 @@ impl DecompressedRowGroup {
         }
     }
 
-    pub fn parse_col<F, P, G, T>(&self, col: usize, parser: P, mut consumer: G) -> Result<(), Error>
-    where P: Fn(&[u8]) -> IResult<&[u8], T>,
-          G: FnMut(usize, T) -> (),
+    pub fn parse_col<P, G, T>(&self, col: usize, parser: P, mut consumer: G) -> Result<(), Error>
+    where
+        P: Fn(&[u8]) -> IResult<&[u8], T>,
+        G: FnMut(usize, T) -> (),
     {
-        let mut input: &[u8] = (&self.data[col][..]).clone();
+        let mut input: &[u8] = &self.data[col].as_slice();
         for idx in 0..self.count {
-            let input_: &[u8] = input.clone();
+            let input_: &[u8] = input;
             match parser(input_) { // use nom parsers
                 Ok((i, o)) => {
                     consumer(idx as usize, o);
                     input = i;
                 },
                 Err(e) => {
-                    dbg!(e);
+                    dbg!("error at {} with err {:?}", idx, e);
                     return Err(failure::err_msg("parse error"));
                 }
             }
