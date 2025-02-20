@@ -45,7 +45,7 @@ use arrow::record_batch::RecordBatch;
 // as defined by the 'compression' header of TKey objects (see, for example, `tbasket2vec` function)
 
 #[derive(Debug)]
-struct DecoderFileState {
+pub struct DecoderFileState {
     #[allow(dead_code)]
     tuples: Tid,
     rowgroups: Vec<RowGroup>,
@@ -117,7 +117,7 @@ impl DecoderFileState {
 // - save file offsets, tuple counts to metadata header
 // - decode_batch can reference that, doesn't need to keep it in thread-local state
 #[derive(Debug)]
-struct DecoderCache {
+pub struct DecoderCache {
     // prev_ttree_id: u32,
     prev_columns: u64, // did the projection bitmask change?
     batch_tid_start: Tid, // last tid produced for last request
@@ -159,13 +159,13 @@ impl DecoderCache {
 #[derive(Debug)]
 pub struct DecoderState {
     /// file state that is unchanging across all calls in this file
-    file: DecoderFileState,
+    pub file: DecoderFileState,
     /// 'cache' state that might change
-    cache: DecoderCache
+    pub cache: DecoderCache
 }
 
 impl DecoderState {
-    fn new(data: &'static [u8], start_tuple: Tid, tuple_count: Tid, columns: u64) -> Self {
+    pub fn new(data: &'static [u8], start_tuple: Tid, tuple_count: Tid, columns: u64) -> Self {
         let file = DecoderFileState::new(data);
         let cache = DecoderCache::new(data, &file, start_tuple, tuple_count, columns);
         DecoderState{file, cache}
