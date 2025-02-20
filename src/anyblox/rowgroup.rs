@@ -10,7 +10,7 @@ use crate::tree_reader::{Tree, Container, BasketHeader, basket_header};
 use bitvec::prelude::*;
 use bitvec::view::BitView;
 use failure::Error;
-use nom::{error::ParseError, IResult, Parser};
+use nom::IResult;
 
 /// row groups are implicit in file format, we need to 'find' them
 /// by finding alignment points between containers (= column chunks)
@@ -113,9 +113,9 @@ impl RowGroup {
 }
 
 pub struct DecompressedRowGroup {
-    start_tid: Tid,
-    count: Tid,
-    data: Vec<Vec<u8>>
+    pub start_tid: Tid,
+    pub count: Tid,
+    pub data: Vec<Vec<u8>>
 }
 
 impl DecompressedRowGroup {

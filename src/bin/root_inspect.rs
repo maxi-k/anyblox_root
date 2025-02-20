@@ -91,7 +91,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}: {}", idx, val);
         })?;
         break;
-
         match tree.branch_by_name(&input.trim()) {
             Ok(branch) => {
                 branch.iterate_fixed_size(|i| be_f64(i), |item, idx| {
