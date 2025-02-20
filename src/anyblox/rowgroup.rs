@@ -3,8 +3,8 @@ use crate::core::
     types::{Tid}
 ;
 use crate::tree_reader::{Tree, Container, basket_header};
+use crate::anyblox::ColumnProjection;
 
-use bitvec::view::BitView;
 use failure::Error;
 use nom::IResult;
 
@@ -120,12 +120,12 @@ impl RowGroup {
     pub fn decode<F, T>(&self, mmap: &[u8], cols: u64, mut init: T, consumer: F) -> T
         where F: Fn(T, RowGroupDecodeCursor, &[u8]) -> T
     {
-        let colmask = cols.view_bits::<crate::anyblox::ColumnMaskOrder>();
+        let colmask = ColumnProjection::from_u64(cols);
         let allcols = self.containers.len();
         let mut colidx=0;
         let mut output: Vec<u8> = Vec::new(); // reuse allocation
         for colid in 0..allcols {
-            if !colmask[colid] {
+            if !colmask.contains(colid as u32) {
                 continue;
             }
             let meta = &self.containers[colid].iter().map(|(start, len)| {

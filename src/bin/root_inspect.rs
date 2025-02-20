@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let column_mask = input.trim()
                                .split_whitespace()
                                .map(|s| s.parse::<usize>().unwrap())
-                               .fold(0u64, |acc, x| acc | 1 << (63 - x));
+                               .fold(0u64, |acc, x| acc | 1 << x);
         println!("parsed column mask: {:b}", column_mask);
 
         println!("enter start tuple: " );

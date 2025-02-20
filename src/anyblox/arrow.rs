@@ -7,13 +7,12 @@
 
 use std::{sync::Arc};
 
-use crate::{anyblox::{ColumnMaskOrder, rowgroup::RowGroup}, tree_reader::Tree};
+use crate::{anyblox::{ColumnProjection, rowgroup::RowGroup}, tree_reader::Tree};
 use arrow::{
     array::{ArrayRef, BooleanArray, Float64Array, Float32Array, Int32Array, Int64Array, UInt32Array, UInt64Array},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
-use bitvec::view::BitView;
 use nom::number::complete::*;
 
 pub fn string_to_arrow_type(s: &str) -> DataType {
@@ -31,11 +30,11 @@ pub fn string_to_arrow_type(s: &str) -> DataType {
 }
 
 pub fn branches_to_arrow_schema(branches: &[(String, String)], cols: u64) -> Schema {
-    let mask = cols.view_bits::<ColumnMaskOrder>();
+    let mask = ColumnProjection::from_u64(cols);
     let fields = branches
         .iter()
         .enumerate()
-        .filter(|(idx, _b)| mask[*idx])
+        .filter(|(idx, _b)| mask.contains(*idx as u32))
         .map(|(_idx, b)| Field::new(b.0.clone(), string_to_arrow_type(b.1.as_str()), false))
         .collect::<Vec<Field>>(); // TODO ^ nullability always false, they have *_valid columns though
     Schema::new(fields)
