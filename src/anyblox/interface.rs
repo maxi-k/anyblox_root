@@ -1,17 +1,11 @@
-use crate::core::{
-    RootFile,
-    Directory,
-    TKeyHeader,
-    types::{Tid}
+use crate::{
+    anyblox::{branches_to_arrow_schema, rowgroup_to_record_batch, RowGroup},
+    core::{types::Tid, RootFile}
 };
-use crate::tree_reader::{Tree};
-use crate::anyblox::{RowGroup, rowgroup_to_record_batch, branches_to_arrow_schema};
 
 use std::{cmp::Ordering, sync::Arc};
-use bitvec::prelude::*;
-use bitvec::view::BitView;
 
-use arrow::{record_batch::RecordBatch, datatypes::Schema};
+use arrow::record_batch::RecordBatch;
 
 // decode_batch params
 // - i32 data, the pointer to the place in Decoder’s linear mem-
@@ -52,15 +46,8 @@ use arrow::{record_batch::RecordBatch, datatypes::Schema};
 
 #[derive(Debug)]
 struct DecoderFileState {
-    // / file directory
-    // dir: Directory,
-    // /// tkey pointing to list of keys in file
-    // keylist: TKeyHeader,
-    // / ttree tuple start for binary search
-    file: RootFile,
+    #[allow(dead_code)]
     tuples: Tid,
-    // ttree_end_tids: Vec<Tid>,
-    // XXX how to ensure allocation is in state page?
     rowgroups: Vec<RowGroup>,
     columns: Vec<(String, String)> // name/type pairs
 }
@@ -81,10 +68,6 @@ impl DecoderFileState {
         }).unwrap_err()
     }
 
-    pub fn tree_at(&self, uid: u32) -> Tree {
-        self.file.items()[uid as usize].as_tree().unwrap()
-    }
-
     pub fn new(data: &'static [u8]) -> Self {
         let file = match RootFile::new(data) {
             Ok(f) => f,
@@ -94,7 +77,6 @@ impl DecoderFileState {
         assert!(file.items().len() == 1);
         let tree = file.items().first().unwrap().as_tree().unwrap();
         Self {
-            file,
             tuples: tree.entries() as Tid,
             rowgroups: RowGroup::find_rowgroups(&tree),
             columns: tree.main_branch_names_and_types(),
@@ -113,24 +95,20 @@ impl DecoderFileState {
 struct DecoderCache {
     // prev_ttree_id: u32,
     prev_columns: u64, // did the projection bitmask change?
-    prev_rowgroup_id: usize,
     batch_tid_start: Tid, // last tid produced for last request
     batch_size: Tid,
-    schema: Arc<Schema>,
     batch: RecordBatch
 }
 
 impl DecoderCache {
-    pub fn new(data: &[u8], global: &DecoderFileState, start_tuple: Tid, tuple_count: Tid, columns: u64) -> Self {
+    pub fn new(data: &[u8], global: &DecoderFileState, start_tuple: Tid, _tuple_count: Tid, columns: u64) -> Self {
         let rg = global.find_rowgroup_containing_tid(start_tuple);
         let group = &global.rowgroups[rg];
         let schema = Arc::new(branches_to_arrow_schema(global.columns.as_slice(), columns));
         DecoderCache{
             prev_columns: columns,
-            prev_rowgroup_id: rg,
             batch_tid_start: group.start_tid,
             batch_size: group.count,
-            schema: schema.clone(),
             batch: rowgroup_to_record_batch(data, columns, group, schema)
         }
     }
@@ -150,11 +128,6 @@ impl DecoderCache {
 
     fn batch_tid_end(&self) -> Tid {
         self.batch_tid_start + self.batch_size
-    }
-
-    pub fn col_bitmask<'a>(columns: &'a u64) -> &'a BitSlice<u64, crate::anyblox::parse::ColumnMaskOrder> {
-        // XXX how is the projection mask encoded? Msb or lsb == col0?
-        columns.view_bits::<crate::anyblox::parse::ColumnMaskOrder>()
     }
 }
 

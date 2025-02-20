@@ -34,6 +34,7 @@ impl TLeaf {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum TLeafVariant {
     TLeafB(TLeafB),

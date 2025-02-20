@@ -17,7 +17,6 @@ extern crate lzma_rs;
 mod code_gen;
 pub mod core;
 pub mod test_utils;
-mod tests;
 pub mod tree_reader;
 
 // anyblox-specific

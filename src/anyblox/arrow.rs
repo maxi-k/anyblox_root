@@ -7,7 +7,7 @@
 
 use std::{sync::Arc};
 
-use crate::{anyblox::{parse::ColumnMaskOrder, rowgroup::RowGroup}, tree_reader::Tree};
+use crate::{anyblox::{ColumnMaskOrder, rowgroup::RowGroup}, tree_reader::Tree};
 use arrow::{
     array::{ArrayRef, BooleanArray, Float64Array, Float32Array, Int32Array, Int64Array, UInt32Array, UInt64Array},
     datatypes::{DataType, Field, Schema},

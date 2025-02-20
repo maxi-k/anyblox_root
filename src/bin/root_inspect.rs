@@ -1,9 +1,7 @@
 use std::{path::Path};
-use anyroot::*;
 use anyroot::anyblox::*;
-use anyroot::core::Tid;
 use std::env;
-use nom::number::complete::*; // number parsing
+ // number parsing
 use memmap::Mmap;
 
 // ROOT file format

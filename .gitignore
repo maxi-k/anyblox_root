@@ -4,3 +4,4 @@
 tmp/
 /target/
 *.root
+.gdb_history

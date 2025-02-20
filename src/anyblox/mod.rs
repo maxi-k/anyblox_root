@@ -1,4 +1,5 @@
-mod parse;
+pub type ColumnMaskOrder = bitvec::order::Msb0;
+
 pub mod rowgroup;
 pub mod arrow;
 pub mod interface;

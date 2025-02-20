@@ -28,9 +28,9 @@ const TDIRECTORY_MAX_SIZE: u64 = 42;
 /// `RootFile` wraps the most basic information of a ROOT file.
 #[derive(Debug)]
 pub struct RootFile {
-    pub(crate) source: Source,
-    pub(crate) hdr: FileHeader,
-    pub(crate) items: Vec<FileItem>,
+    source: Source,
+    hdr: FileHeader,
+    items: Vec<FileItem>,
 }
 
 #[derive(Debug, PartialEq)]

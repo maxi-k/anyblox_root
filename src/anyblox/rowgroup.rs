@@ -1,13 +1,9 @@
 use std::fmt::{Formatter, Debug};
-use crate::core::{
-    types::{Tid},
-    tkey_header,
-    decompress
-};
-use crate::anyblox::parse::consume_count;
-use crate::tree_reader::{Tree, Container, BasketHeader, basket_header};
+use crate::core::
+    types::{Tid}
+;
+use crate::tree_reader::{Tree, Container, basket_header};
 
-use bitvec::prelude::*;
 use bitvec::view::BitView;
 use failure::Error;
 use nom::IResult;
@@ -124,7 +120,7 @@ impl RowGroup {
     pub fn decode<F, T>(&self, mmap: &[u8], cols: u64, mut init: T, consumer: F) -> T
         where F: Fn(T, RowGroupDecodeCursor, &[u8]) -> T
     {
-        let colmask = cols.view_bits::<crate::anyblox::parse::ColumnMaskOrder>();
+        let colmask = cols.view_bits::<crate::anyblox::ColumnMaskOrder>();
         let allcols = self.containers.len();
         let mut colidx=0;
         let mut output: Vec<u8> = Vec::new(); // reuse allocation
@@ -162,11 +158,6 @@ pub struct DecompressedRowGroup {
     pub data: Vec<Vec<u8>>
 }
 
-pub struct ColumnChunk<'a> {
-    rg: &'a DecompressedRowGroup,
-    col: usize
-}
-
 impl DecompressedRowGroup {
     pub fn new(mmap: &[u8], cols: u64, offsets: &RowGroup) -> Self {
         let mut coldata = vec![Vec::new(); cols.count_ones() as usize];
@@ -202,14 +193,4 @@ impl DecompressedRowGroup {
         }
         Ok(())
     }
-
-    pub fn column_chunks(&self) -> Vec<ColumnChunk> {
-      (0..self.data.len()).map(|i| ColumnChunk::new(self, i)).collect()
-    }
-}
-
-impl ColumnChunk<'_> {
-   pub fn new<'a>(rg: &'a DecompressedRowGroup, col: usize) -> ColumnChunk<'a> {
-       ColumnChunk{rg, col}
-   }
 }
