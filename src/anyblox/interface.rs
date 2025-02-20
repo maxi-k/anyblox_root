@@ -62,7 +62,7 @@ impl DecoderFileState {
     //     }).ok()
     // }
     pub fn find_rowgroup_containing_tid(&self, tuple: Tid) -> usize {
-        self.rowgroups.binary_search_by(|rg| match rg.end_tid().cmp(&tuple) {
+        self.rowgroups.binary_search_by(|rg| match (rg.end_tid()-1).cmp(&tuple) {
             Ordering::Equal => Ordering::Greater, // lower bound
            ord => ord
         }).unwrap_err()

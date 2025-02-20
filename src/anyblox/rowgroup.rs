@@ -65,7 +65,8 @@ impl RowGroup {
             let mut res = RowGroup{start_tid: current.start_tid, count: tid_end - current.start_tid, containers: current.containers };
             if tid_end ==  max_tid { // collect rest of containers
               (0..bcnt).for_each(|idx| {
-                  (ids[idx]..(&branches[idx]).container_start_indices().len()).for_each(|off| {
+                  let missing_range = ids[idx]..(&branches[idx]).containers().len();
+                  missing_range.for_each(|off| {
                       res.containers[idx].push(Self::container_to_offsets(&branches[idx].containers()[off]));
                   });
               });
@@ -80,17 +81,15 @@ impl RowGroup {
             assert!(container_ids.iter().enumerate().all(|(idx, id)| *id < (&branches[idx]).containers().len()));
             let first = branches[0].container_start_indices()[container_ids[0]];
             // check whether all branches are in alignment
-            let (smallest_tid, is_same) = (0..bcnt).fold((first, true), |(tid, same), idx| {
+            let (largest_tid, is_same) = (0..bcnt).fold((first, true), |(tid, same), idx| {
                 let branch = &branches[idx];
                 let branch_tid = branch.container_start_indices()[container_ids[idx]];
-                (branch_tid.min(tid), same && branch_tid == tid)
+                (branch_tid.max(tid), same && branch_tid == tid)
             });
             if is_same { // all tids were the same -> row group boundary
-                cur = bundle_rowgroup(smallest_tid, cur, &mut container_ids);
-                container_ids.iter_mut().for_each(|id| *id += 1);
+                cur = bundle_rowgroup(largest_tid, cur, &mut container_ids);
                 // this might also be the end iff the very last containers all have the same size
                 if container_ids[0] == (&branches[0]).container_start_indices().len() {
-                    dbg!("end of file");
                     // should be the end for all - assert that
                     assert!(container_ids.iter().enumerate().all(|(idx, id)| *id == (&branches[idx]).containers().len()));
                     assert!((cur.start_tid as i64) == t.entries());
@@ -102,7 +101,7 @@ impl RowGroup {
                     let id = &mut container_ids[idx];
                     let indices = (&branches[idx]).container_start_indices();
                     let branch_tid = indices[*id];
-                    if branch_tid == smallest_tid {
+                    if branch_tid < largest_tid {
                         cur.containers[idx].push(Self::container_to_offsets(&branches[idx].containers()[*id]));
                         *id += 1;
                         at_end |= *id == indices.len();
@@ -113,6 +112,11 @@ impl RowGroup {
                 }
             }
         }
+        // sum(rowgroup.#entries) == #file.entries
+        assert!(rowgroups.iter().fold(0usize, |acc, rg| acc + rg.count as usize) == t.entries() as usize);
+        // sum(rowgroup.#containers) == #branch[0].#containers
+        assert!(rowgroups.iter().fold(0usize, |acc, rg| acc + rg.containers[0].len()) == branches[0].containers().len());
+        assert!(rowgroups.iter().fold(0usize, |acc, rg| acc + rg.containers[0].len()) == branches[0].containers().len());
         // return result
         rowgroups
     }

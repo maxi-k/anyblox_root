@@ -5,3 +5,5 @@ tmp/
 /target/
 *.root
 .gdb_history
+.envrc
+.direnv
