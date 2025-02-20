@@ -36,7 +36,7 @@ impl Source {
             }
             SourceInner::InMem(ref data) =>  {
                 // TODO copies stuff
-                Ok(data.to_vec())
+                Ok(data[(start as usize)..((start+len) as usize)].to_vec())
             }
         }
     }

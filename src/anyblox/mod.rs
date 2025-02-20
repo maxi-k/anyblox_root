@@ -1,8 +1,8 @@
 mod parse;
 pub mod rowgroup;
-pub mod metadata;
 pub mod arrow;
+pub mod interface;
 
 pub use rowgroup::*;
-pub use metadata::*;
 pub use arrow::*;
+pub use interface::*;

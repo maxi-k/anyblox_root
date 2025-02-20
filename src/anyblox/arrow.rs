@@ -9,13 +9,11 @@ use std::{sync::Arc};
 
 use crate::{anyblox::{parse::ColumnMaskOrder, rowgroup::RowGroup}, tree_reader::Tree};
 use arrow::{
-    array::{Array, ArrayRef, BooleanArray, Float64Array, Float32Array, Int32Array, Int64Array, UInt32Array, UInt64Array},
+    array::{ArrayRef, BooleanArray, Float64Array, Float32Array, Int32Array, Int64Array, UInt32Array, UInt64Array},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
-use bitvec::prelude::*;
 use bitvec::view::BitView;
-use failure::Error;
 use nom::number::complete::*;
 
 pub fn string_to_arrow_type(s: &str) -> DataType {
@@ -24,6 +22,7 @@ pub fn string_to_arrow_type(s: &str) -> DataType {
         "f64" => DataType::Float64,
         "u64" => DataType::UInt64,
         "i64" => DataType::Int64,
+        "f32" => DataType::Float32,
         "u32" => DataType::UInt32,
         "i32" => DataType::Int32,
         "bool" => DataType::Boolean,
@@ -54,7 +53,7 @@ where
     nom::combinator::map(be_u8::<I, E>, |b| b != 0)(input)
 }
 
-pub fn rowgroup_to_record_batch(mmap: &[u8], colmask: u64, rg: &RowGroup, sc: &Schema) -> RecordBatch {
+pub fn rowgroup_to_record_batch(mmap: &[u8], colmask: u64, rg: &RowGroup, sc: Arc<Schema>) -> RecordBatch {
     let mut arrays: Vec<ArrayRef> = Vec::new();
     arrays.reserve(colmask.count_ones() as usize);
     let arrays = rg.decode(mmap, colmask, arrays, |mut cols, cursor, data| {
@@ -106,5 +105,5 @@ pub fn rowgroup_to_record_batch(mmap: &[u8], colmask: u64, rg: &RowGroup, sc: &S
         cols
     });
     // XXX reuse schema by passing in arc into this fn?
-    RecordBatch::try_new(Arc::new(sc.clone()), arrays).unwrap()
+    RecordBatch::try_new(sc, arrays).unwrap()
 }

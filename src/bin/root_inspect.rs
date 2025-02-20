@@ -53,31 +53,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // if arg given, read file from given  name, otherwise default
     let default_file = String::from("../cern.ch:84000.root");
     let filename: &String = if args.len() <= 1 {&default_file} else {&args[1]};
-    println!("Opening file: {}", filename);
     let path = Path::new(filename);
-    let rf = RootFile::new(path)?;
-    println!("File: {:?}", rf);
-    let tree = rf.items()[0].as_tree()?;
-    let branches = tree.main_branches();
-
-    println!("tree entries: {}", tree.entries());
-    println!("searching for row groups...");
-    let rgs = anyblox::RowGroup::find_rowgroups(&tree);
-    println!("found {} rowgroups in tree", rgs.len());
-
     let file = std::fs::File::open(path).unwrap();
     let mmap = unsafe { Mmap::map(&file).unwrap() };
 
-    // break before printing lots
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
-    for b in branches.iter() {
-        println!("{}: {:?}", b.name(), b.element_types());
-    }
-
     // print branch data itself
+    let mut state: Option<DecoderState> = None;
     loop {
-        println!("pick one of {} f64 branch (column) to print or 'exit' to exit", branches.len());
+        println!("pick some space-separated column ids to print or 'exit' to exit");
         println!("> ");
         // read name from stdin
         let mut input = String::new();
@@ -85,61 +68,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if input.trim() == "exit" {
             break;
         }
-        let idx = match tree.branch_index(&input.trim()) {
-            Some(i) => i,
-            None => {
-                println!("branch not found");
-                for b in branches.iter() {
-                    println!("{}: {:?}", b.name(), b.element_types());
-                }
-                continue;
-            }
-        };
-        // let decomp = DecompressedRowGroup::new(&mmap[..], u64::MAX, &rgs[0]);
-        //
-        // arrow schema
-        let selected_cols = (1u64 << 63) >> idx;
-        let sc = tree_to_arrow_schema(&tree, selected_cols);
-        println!("built schema {:?}", sc);
-        let schema = tree_to_arrow_schema(&tree, selected_cols);
-        let batch = rowgroup_to_record_batch(&mmap, selected_cols, &rgs[0], &schema);
-        println!("batch: {:?}", batch);
 
-        continue;
-        match tree.branch_by_name(&input.trim()) {
-            Ok(branch) => {
-                branch.iterate_fixed_size(|i| be_f64(i), |item, idx| {
-                    println!("item: {:?}", item);
-                    return idx < 10;
-                });
-                // println!("branch {:?}", branch);
-                // println!("branch with {} containers and {} items overall ", branch.containers().len(), branch.entries());
-                // let container_lengths = branch.container_start_indices().iter().scan(0, |acc, &x| {
-                //     let prev = *acc;
-                //     *acc = x;
-                //     return Some(x - prev);
-                // }).collect::<Vec<Tid>>();
-                // println!("container start idx: {:?}", branch.container_start_indices());
-                // println!("container lengths: {:?}", container_lengths);
-                // continue;
+        // split input into column  indices
+        let column_mask = input.trim()
+                               .split_whitespace()
+                               .map(|s| s.parse::<usize>().unwrap())
+                               .fold(0u64, |acc, x| acc | 1 << (63 - x));
+        println!("parsed column mask: {:b}", column_mask);
 
-                // let mut cnt_sum : usize = 0;
-                // let mut cnt_min : usize = usize::MAX;
-                // let mut cnt_max : usize = 0;
-                // for container in branch.containers() {
-                //     let (cnt, _data) = container.clone().raw_data().unwrap();
-                //     let c = cnt as usize;
-                //     cnt_sum += c;
-                //     cnt_min = cnt_min.min(c);
-                //     cnt_max = cnt_max.max(c);
-                // }
-                // println!("container stats: sum: {}, min: {}, max: {}, avg {}", cnt_sum, cnt_min, cnt_max, cnt_sum / branch.containers().len());
+        println!("enter start tuple: " );
+        input.clear();
+        std::io::stdin().read_line(&mut input)?;
+        let start = input.trim().parse::<i32>().unwrap();
+        println!("parsed start: {}", start);
 
-            },
-            Err(e) => {
-                println!("Branch not found: {}", e);
-            }
-        }
+        println!("enter count: " );
+        input.clear();
+        std::io::stdin().read_line(&mut input)?;
+        let count = input.trim().parse::<i32>().unwrap();
+
+        let batch = decode_batch_internal(&mmap, start, count, &mut state, column_mask);
+        println!("decoded batch: {:?}", batch);
+        println!("{} rows / {} cols: ", batch.num_rows(), batch.num_columns());
     }
     return Ok(());
 }

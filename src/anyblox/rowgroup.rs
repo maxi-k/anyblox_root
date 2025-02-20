@@ -48,6 +48,10 @@ impl RowGroup {
        }
     }
 
+    pub fn end_tid(&self) -> Tid {
+        self.start_tid + self.count
+    }
+
     pub fn find_rowgroups(t: &Tree) -> Vec<RowGroup> {
         let branches = &t.fbranches;
         let bcnt = t.branch_count();
