@@ -126,6 +126,13 @@ impl Tree {
             .collect()
     }
 
+    pub fn main_branch_names_and_types(&self) -> Vec<(String, String)> {
+        self.fbranches
+            .iter()
+            .map(|b| (b.name(), b.element_types()[0].clone()))
+            .collect()
+    }
+
     pub fn branch_index(&self, name: &str) -> Option<usize> {
         self.fbranches.iter().position(|b| b.name == name)
     }

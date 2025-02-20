@@ -74,6 +74,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for b in branches.iter() {
         println!("{}: {:?}", b.name(), b.element_types());
     }
+
+    // arrow schema
+    let selected_cols = 1u64 << 62;
+    let sc = tree_to_arrow_schema(&tree, selected_cols);
+    println!("built schema {:?}", sc);
+
     // print branch data itself
     loop {
         println!("pick one of {} f64 branch (column) to print or 'exit' to exit", branches.len());
@@ -85,12 +91,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
         let idx = tree.branch_index(&input.trim()).unwrap();
-        let decomp = DecompressedRowGroup::new(&mmap[..], u64::MAX, &rgs[0]);
+        // let decomp = DecompressedRowGroup::new(&mmap[..], u64::MAX, &rgs[0]);
 
-        decomp.parse_col(idx, |i| be_f64(i), |idx: usize, val: f64| {
-            println!("{}: {}", idx, val);
-        })?;
-        break;
+        // decomp.parse_col(idx, |i| be_f64(i), |idx: usize, val: f64| {
+        //     println!("{}: {}", idx, val);
+        // })?;
+        let schema = tree_to_arrow_schema(&tree, selected_cols);
+        let batch = rowgroup_to_record_batch(&mmap, selected_cols, &rgs[0], &schema);
+        println!("batch: {:?}", batch);
+
+        continue;
         match tree.branch_by_name(&input.trim()) {
             Ok(branch) => {
                 branch.iterate_fixed_size(|i| be_f64(i), |item, idx| {

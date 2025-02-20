@@ -17,9 +17,9 @@ use nom::IResult;
 /// of the tree branches.
 // #[derive(Debug)]
 pub struct RowGroup {
-    start_tid: Tid,
-    count: Tid,
-    containers: Vec<Vec<(u32, u32)>>
+    pub start_tid: Tid,
+    pub count: Tid,
+    pub containers: Vec<Vec<(u32, u32)>>
 }
 
 impl Debug for RowGroup {
@@ -31,6 +31,12 @@ impl Debug for RowGroup {
             .field("containers[[..2]..2]", &self.containers.iter().take(2).map(|c| c.iter().take(2).collect::<Vec<_>>()).collect::<Vec<_>>())
             .finish()
     }
+}
+
+pub struct RowGroupDecodeCursor {
+    pub global_col_idx: usize,
+    pub projected_col_idx: usize,
+    pub byte_count: usize
 }
 
 impl RowGroup {
@@ -110,6 +116,40 @@ impl RowGroup {
         // return result
         rowgroups
     }
+
+    pub fn decode<F, T>(&self, mmap: &[u8], cols: u64, mut init: T, consumer: F) -> T
+        where F: Fn(T, RowGroupDecodeCursor, &[u8]) -> T
+    {
+        let colmask = cols.view_bits::<crate::anyblox::parse::ColumnMaskOrder>();
+        let allcols = self.containers.len();
+        let mut colidx=0;
+        let mut output: Vec<u8> = Vec::new(); // reuse allocation
+        for colid in 0..allcols {
+            if !colmask[colid] {
+                continue;
+            }
+            let meta = &self.containers[colid].iter().map(|(start, len)| {
+                let buf = &mmap[*start as usize..(*start + *len) as usize];
+                basket_header(buf).unwrap().1
+            }).collect::<Vec<_>>();
+            let totsize = meta.iter().fold(0usize, |acc, m| acc + m.header.uncomp_len as usize);
+            if totsize > output.len() {
+                output.resize(totsize, 0);
+            }
+            let written = meta.iter().fold(0usize, |offset, m| {
+                let nbyte = m.decode_into(&mut output[offset..]);
+                offset + nbyte
+            });
+            assert!(written <= totsize);
+            init = consumer(
+                init,
+                RowGroupDecodeCursor{global_col_idx: colid, projected_col_idx: colidx, byte_count: written},
+                &output[..written]
+            );
+            colidx += 1;
+        };
+        init
+    }
 }
 
 pub struct DecompressedRowGroup {
@@ -118,27 +158,18 @@ pub struct DecompressedRowGroup {
     pub data: Vec<Vec<u8>>
 }
 
+pub struct ColumnChunk<'a> {
+    rg: &'a DecompressedRowGroup,
+    col: usize
+}
+
 impl DecompressedRowGroup {
     pub fn new(mmap: &[u8], cols: u64, offsets: &RowGroup) -> Self {
-        let colmask = cols.view_bits::<Msb0>();
-        let allcols = offsets.containers.len();
         let mut coldata = vec![Vec::new(); cols.count_ones() as usize];
-        for colid in 0..allcols {
-            if !colmask[colid] {
-                continue;
-            }
-            let meta = &offsets.containers[colid].iter().map(|(start, len)| {
-                let buf = &mmap[*start as usize..(*start + *len) as usize];
-                basket_header(buf).unwrap().1
-            }).collect::<Vec<_>>();
-            let totsize = meta.iter().fold(0usize, |acc, m| acc + m.header.uncomp_len as usize);
-            coldata[colid as usize] = vec![0u8; totsize];
-            let written = meta.iter().fold(0usize, |offset, m| {
-                let nbyte = m.decode_into(&mut coldata[colid as usize][offset..]);
-                offset + nbyte
-            });
-            assert!(written <= totsize);
-        };
+        coldata = offsets.decode(mmap, cols, coldata, |mut cols, cursor, bytes| {
+            cols[cursor.projected_col_idx] = bytes.to_vec();
+            cols
+        });
         DecompressedRowGroup{
             start_tid: offsets.start_tid,
             count: offsets.count,
@@ -167,4 +198,14 @@ impl DecompressedRowGroup {
         }
         Ok(())
     }
+
+    pub fn column_chunks(&self) -> Vec<ColumnChunk> {
+      (0..self.data.len()).map(|i| ColumnChunk::new(self, i)).collect()
+    }
+}
+
+impl ColumnChunk<'_> {
+   pub fn new<'a>(rg: &'a DecompressedRowGroup, col: usize) -> ColumnChunk<'a> {
+       ColumnChunk{rg, col}
+   }
 }

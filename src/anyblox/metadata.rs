@@ -146,9 +146,9 @@ impl DecoderCache {
         DecoderCache{prev_columns: columns, prev_tid_end: start_tuple + tuple_count, prev_columns_data: cols}
     }
 
-    pub fn col_bitmask<'a>(columns: &'a u64) -> &'a BitSlice<u64, Msb0> {
+    pub fn col_bitmask<'a>(columns: &'a u64) -> &'a BitSlice<u64, crate::anyblox::parse::ColumnMaskOrder> {
         // XXX how is the projection mask encoded? Msb or lsb == col0?
-        columns.view_bits::<Msb0>()
+        columns.view_bits::<crate::anyblox::parse::ColumnMaskOrder>()
     }
 }
 

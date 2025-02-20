@@ -1,7 +1,8 @@
 mod parse;
 pub mod rowgroup;
 pub mod metadata;
+pub mod arrow;
 
-pub(crate) use parse::consume_count;
 pub use rowgroup::*;
 pub use metadata::*;
+pub use arrow::*;
