@@ -123,7 +123,7 @@ impl DecoderCache {
         let start = start_tuple - self.batch_tid_start;
         // (XXX make sure that this is does not copy the columns)
         // https://docs.rs/arrow/latest/arrow/array/struct.RecordBatch.html#method.slice
-        self.batch.slice(start as usize, tuple_count.min(self.batch_tid_end() - start) as usize)
+        self.batch.slice(start as usize, tuple_count.min(self.batch_size - start) as usize)
     }
 
     fn batch_tid_end(&self) -> Tid {
