@@ -30,6 +30,7 @@ pub fn string_to_arrow_type(s: &str) -> DataType {
 }
 
 pub fn branches_to_arrow_schema(branches: &[(String, String)], cols: u64) -> Schema {
+    println!("branches.len: {}", branches.len());
     let mask = ColumnProjection::from_u64(cols);
     let fields = branches
         .iter()
