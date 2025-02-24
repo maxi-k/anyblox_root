@@ -16,6 +16,7 @@ lz4-compress = "0.1.1"
 regex = "1.8.1"
 arrow = { version = "54.2.0", features = [] }
 bytes = { version = "1.10.0", features = [] }
+aligned-vec = "0.6.1"
 
 [features]
 default = []

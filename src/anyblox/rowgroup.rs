@@ -5,6 +5,7 @@ use crate::core::
 use crate::tree_reader::{Tree, Container, basket_header};
 use crate::anyblox::ColumnProjection;
 
+use aligned_vec::AVec;
 use failure::Error;
 use nom::IResult;
 
@@ -121,7 +122,8 @@ impl RowGroup {
         let colmask = ColumnProjection::from_u64(cols);
         let allcols = self.containers.len();
         let mut colidx=0;
-        let mut output: Vec<u8> = Vec::new(); // reuse allocation
+        // XXX output Vec<u8> aligned to 8 bytes
+        let mut output: AVec<u8> = AVec::new(8);
         for colid in 0..allcols {
             if !colmask.contains(colid as u32) {
                 continue;

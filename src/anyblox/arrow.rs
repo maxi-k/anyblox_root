@@ -71,9 +71,12 @@ pub fn rowgroup_to_record_batch(mmap: &[u8], colmask: u64, rg: &RowGroup, sc: Ar
         macro_rules! unsafe_cast_array(
             ($arr:ident, $type:ident, $cnt:expr) => {
                 // append_slice (transmute(data))
-                (|| { let bytes = bytes::Bytes::copy_from_slice(data);
-                      let buf = $arr::new(arrow::buffer::ScalarBuffer::from(arrow::buffer::Buffer::from(bytes)), None);
-                      buf
+                (|| { // let bytes = bytes::Bytes::copy_from_slice(data);
+                    // let buf = $arr::new(arrow::buffer::ScalarBuffer::from(arrow::buffer::Buffer::from(bytes)), None);
+                    let ptr = data.as_ptr() as *const <$type as arrow::array::ArrowPrimitiveType>::Native;
+                    let mut bld = $arr::builder($cnt);
+                    bld.append_slice(unsafe { std::slice::from_raw_parts(ptr, $cnt) });
+                    bld.finish()
                 })()
             }
         );
