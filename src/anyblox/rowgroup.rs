@@ -89,14 +89,7 @@ impl RowGroup {
             if is_same { // all tids were the same -> row group boundary
                 cur = bundle_rowgroup(largest_tid, cur, &mut container_ids);
                 // this might also be the end iff the very last containers all have the same size
-                if container_ids[0] == (&branches[0]).container_start_indices().len() {
-                    // should be the end for all - assert that
-                    assert!(container_ids.iter().enumerate().all(|(idx, id)| *id == (&branches[idx]).containers().len()));
-                    assert!((cur.start_tid as i64) == t.entries());
-                    break;
-                }
             } else { // advance the smallest tid(s) if not at row group boundary
-                let mut at_end = false;
                 for idx in 0..bcnt {
                     let id = &mut container_ids[idx];
                     let indices = (&branches[idx]).container_start_indices();
@@ -104,12 +97,13 @@ impl RowGroup {
                     if branch_tid < largest_tid {
                         cur.containers[idx].push(Self::container_to_offsets(&branches[idx].containers()[*id]));
                         *id += 1;
-                        at_end |= *id == indices.len();
                     }
                 }
-                if at_end {
-                    cur = bundle_rowgroup(max_tid, cur, &mut container_ids);
-                }
+            }
+            if container_ids.iter().enumerate().any(|(idx, id)| *id == (&branches[idx]).containers().len()) {
+                cur = bundle_rowgroup(max_tid, cur, &mut container_ids);
+                assert!(cur.start_tid == max_tid);
+                break;
             }
         }
         // sum(rowgroup.#entries) == #file.entries
@@ -141,7 +135,7 @@ impl RowGroup {
                 output.resize(totsize, 0);
             }
             let written = meta.iter().fold(0usize, |offset, m| {
-                let nbyte = m.decode_into(&mut output[offset..]);
+                let nbyte = m.decode_into(&mut output[offset..(offset+(m.header.uncomp_len as usize))]);
                 offset + nbyte
             });
             assert!(written <= totsize);

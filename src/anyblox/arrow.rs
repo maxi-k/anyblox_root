@@ -9,8 +9,8 @@ use std::{sync::Arc};
 
 use crate::{anyblox::{ColumnProjection, rowgroup::RowGroup}, tree_reader::Tree};
 use arrow::{
-    array::{ArrayRef, BooleanArray},
-    datatypes::{DataType, Field, Schema, *},
+    array::*,
+    datatypes::*,
     record_batch::RecordBatch,
 };
 use nom::number::complete::*;
@@ -69,10 +69,10 @@ pub fn rowgroup_to_record_batch(mmap: &[u8], colmask: u64, rg: &RowGroup, sc: Ar
             }
         );
         macro_rules! unsafe_cast_array(
-            ($type:ident, $cnt:expr) => {
+            ($arr:ident, $type:ident, $cnt:expr) => {
                 // append_slice (transmute(data))
                 (|| { let bytes = bytes::Bytes::copy_from_slice(data);
-                      let buf = arrow::array::PrimitiveArray::<$type>::new(arrow::buffer::ScalarBuffer::from(arrow::buffer::Buffer::from(bytes)), None);
+                      let buf = $arr::new(arrow::buffer::ScalarBuffer::from(arrow::buffer::Buffer::from(bytes)), None);
                       buf
                 })()
             }
@@ -80,37 +80,37 @@ pub fn rowgroup_to_record_batch(mmap: &[u8], colmask: u64, rg: &RowGroup, sc: Ar
         // slower variant returning native-endian arrays
         #[cfg(feature = "slow_endian_parsing")]
         macro_rules! parse_array(
-            ($type:ident, $parser:ident, $cnt:expr) => {parse_array_nom!(arrow::array::PrimitiveArray::<$type>, $parser, $cnt)}
+            ($type:ident, $arr:ident, $parser:ident, $cnt:expr) => {parse_array_nom!($arr, $parser, $cnt)}
         );
         // unsafe variant returning big-endian arrays (root format)
         #[cfg(not(feature = "slow_endian_parsing"))]
         macro_rules! parse_array(
-            ($type:ident, $parser:ident, $cnt:expr) => {unsafe_cast_array!($type, $cnt)}
+            ($type:ident, $arr:ident, $parser:ident, $cnt:expr) => {unsafe_cast_array!($arr, $type, $cnt)}
         );
         let arr: ArrayRef = match coltype {
             DataType::UInt32 => {
                 assert!(cursor.byte_count/4 == cnt);
-                Arc::new(parse_array!(UInt32Type, be_u32, cnt))
+                Arc::new(parse_array!(UInt32Type, UInt32Array, be_u32, cnt))
             }
             DataType::Int32 => {
                 assert!(cursor.byte_count/4 == cnt);
-                Arc::new(parse_array!(Int32Type, le_i32, cnt))
+                Arc::new(parse_array!(Int32Type, Int32Array, le_i32, cnt))
             }
             DataType::Float32 => {
                 assert!(cursor.byte_count/4 == cnt);
-                Arc::new(parse_array!(Float32Type, be_f32, cnt))
+                Arc::new(parse_array!(Float32Type, Float32Array, be_f32, cnt))
             }
             DataType::UInt64 => {
                 assert!(cursor.byte_count/8 == cnt);
-                Arc::new(parse_array!(UInt64Type, be_u64, cnt))
+                Arc::new(parse_array!(UInt64Type, UInt64Array, be_u64, cnt))
             }
             DataType::Int64 => {
                 assert!(cursor.byte_count/8 == cnt);
-                Arc::new(parse_array!(Int64Type, be_i64, cnt))
+                Arc::new(parse_array!(Int64Type, Int64Array, be_i64, cnt))
             }
             DataType::Float64 => {
                 assert!(cursor.byte_count/8 == cnt);
-                Arc::new(parse_array!(Float64Type, be_f64, cnt))
+                Arc::new(parse_array!(Float64Type, Float64Array, be_f64, cnt))
             }
             DataType::Boolean => {
                 assert!(cursor.byte_count == cnt);
