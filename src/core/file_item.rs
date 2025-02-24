@@ -24,11 +24,20 @@ impl FileItem {
     pub fn verbose_info(&self) -> String {
         format!("{:#?}", self.tkey_hdr)
     }
+
     pub fn name(&self) -> String {
         format!(
             "`{}` of type `{}`",
             self.tkey_hdr.obj_name, self.tkey_hdr.class_name
         )
+    }
+
+    pub fn root_class(&self) -> String {
+        self.tkey_hdr.class_name.clone()
+    }
+
+    pub fn uncompressed_size(&self) -> u32 {
+        self.tkey_hdr.uncomp_len
     }
 
     fn get_buffer(&self) -> Result<Vec<u8>, Error> {
@@ -38,13 +47,12 @@ impl FileItem {
 
         let buf = if self.tkey_hdr.total_size < self.tkey_hdr.uncomp_len {
             // Decompress the read buffer; buf is Vec<u8>
-            println!("decompressing fileitem buffer of length {}MB", len/ 1024/1024);
+            debug_print!("decompressing fileitem buffer of length {}MB", len/ 1024/1024);
             let (_, buf) = decompress(comp_buf.as_slice()).unwrap();
             buf
         } else {
             comp_buf
         };
-        println!("inmem fileitem buffer of length {}MB", buf.len()/ 1024/1024);
         Ok(buf)
     }
 

@@ -15,6 +15,15 @@ uuid = "0.8.2"
 lz4-compress = "0.1.1"
 regex = "1.8.1"
 arrow = { version = "54.2.0", features = [] }
+bytes = { version = "1.10.0", features = [] }
+
+[features]
+default = []
+slow_endian_parsing = []
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 memmap = "0.7.0"
@@ -26,6 +35,7 @@ criterion = "0.3"
 wasm-bindgen = "0.2.60"
 wasm-bindgen-test = "0.3.10"
 web-sys = {"version" = "0.3.4", "features" = [ 'console' ]}
+
 
 # Run with cargo bench --bench iter_branch -- --baseline pathbuf-in-container --color never
 # [[bench]]

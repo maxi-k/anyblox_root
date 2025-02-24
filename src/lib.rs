@@ -13,6 +13,16 @@ extern crate failure;
 extern crate flate2;
 extern crate lzma_rs;
 
+#[cfg(debug_assertions)]
+macro_rules! debug_print {
+    ($($arg:tt)*) => { println!($($arg)*); };
+}
+
+#[cfg(not(debug_assertions))]
+macro_rules! debug_print {
+    ($($arg:tt)*) => { };
+}
+
 // pub mod core_types;
 mod code_gen;
 pub mod core;

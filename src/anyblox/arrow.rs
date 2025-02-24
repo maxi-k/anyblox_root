@@ -9,8 +9,8 @@ use std::{sync::Arc};
 
 use crate::{anyblox::{ColumnProjection, rowgroup::RowGroup}, tree_reader::Tree};
 use arrow::{
-    array::{ArrayRef, BooleanArray, Float64Array, Float32Array, Int32Array, Int64Array, UInt32Array, UInt64Array},
-    datatypes::{DataType, Field, Schema},
+    array::{ArrayRef, BooleanArray},
+    datatypes::{DataType, Field, Schema, *},
     record_batch::RecordBatch,
 };
 use nom::number::complete::*;
@@ -49,7 +49,7 @@ where
     I: nom::InputIter<Item = u8> + nom::InputTake + nom::InputLength + nom::Slice<std::ops::RangeFrom<usize>>,
     E: nom::error::ParseError<I>,
 {
-    nom::combinator::map(be_u8::<I, E>, |b| b != 0)(input)
+    nom::combinator::map(le_u8::<I, E>, |b| b != 0)(input)
 }
 
 pub fn rowgroup_to_record_batch(mmap: &[u8], colmask: u64, rg: &RowGroup, sc: Arc<Schema>) -> RecordBatch {
@@ -58,7 +58,7 @@ pub fn rowgroup_to_record_batch(mmap: &[u8], colmask: u64, rg: &RowGroup, sc: Ar
     let arrays = rg.decode(mmap, colmask, arrays, |mut cols, cursor, data| {
         let coltype = sc.field(cursor.projected_col_idx).data_type();
         let cnt = rg.count as usize;
-        macro_rules! parse_array(
+        macro_rules! parse_array_nom(
             ($arr:ident, $parser:ident, $cnt:expr) => {
                 nom::multi::fold_many_m_n(
                     $cnt, $cnt, $parser::<&[u8], nom::error::Error<&[u8]>>,
@@ -68,34 +68,54 @@ pub fn rowgroup_to_record_batch(mmap: &[u8], colmask: u64, rg: &RowGroup, sc: Ar
                     })(data).unwrap().1.finish()
             }
         );
+        macro_rules! unsafe_cast_array(
+            ($type:ident, $cnt:expr) => {
+                // append_slice (transmute(data))
+                (|| { let bytes = bytes::Bytes::copy_from_slice(data);
+                      let buf = arrow::array::PrimitiveArray::<$type>::new(arrow::buffer::ScalarBuffer::from(arrow::buffer::Buffer::from(bytes)), None);
+                      buf
+                })()
+            }
+        );
+        // slower variant returning native-endian arrays
+        #[cfg(feature = "slow_endian_parsing")]
+        macro_rules! parse_array(
+            ($type:ident, $parser:ident, $cnt:expr) => {parse_array_nom!(arrow::array::PrimitiveArray::<$type>, $parser, $cnt)}
+        );
+        // unsafe variant returning big-endian arrays (root format)
+        #[cfg(not(feature = "slow_endian_parsing"))]
+        macro_rules! parse_array(
+            ($type:ident, $parser:ident, $cnt:expr) => {unsafe_cast_array!($type, $cnt)}
+        );
         let arr: ArrayRef = match coltype {
             DataType::UInt32 => {
                 assert!(cursor.byte_count/4 == cnt);
-                Arc::new(parse_array!(UInt32Array, be_u32, cnt))
+                Arc::new(parse_array!(UInt32Type, be_u32, cnt))
             }
             DataType::Int32 => {
                 assert!(cursor.byte_count/4 == cnt);
-                Arc::new(parse_array!(Int32Array, be_i32, cnt))
+                Arc::new(parse_array!(Int32Type, le_i32, cnt))
             }
             DataType::Float32 => {
                 assert!(cursor.byte_count/4 == cnt);
-                Arc::new(parse_array!(Float32Array, be_f32, cnt))
+                Arc::new(parse_array!(Float32Type, be_f32, cnt))
             }
             DataType::UInt64 => {
                 assert!(cursor.byte_count/8 == cnt);
-                Arc::new(parse_array!(UInt64Array, be_u64, cnt))
+                Arc::new(parse_array!(UInt64Type, be_u64, cnt))
             }
             DataType::Int64 => {
                 assert!(cursor.byte_count/8 == cnt);
-                Arc::new(parse_array!(Int64Array, be_i64, cnt))
+                Arc::new(parse_array!(Int64Type, be_i64, cnt))
             }
             DataType::Float64 => {
                 assert!(cursor.byte_count/8 == cnt);
-                Arc::new(parse_array!(Float64Array, be_f64, cnt))
+                Arc::new(parse_array!(Float64Type, be_f64, cnt))
             }
             DataType::Boolean => {
                 assert!(cursor.byte_count == cnt);
-                Arc::new(parse_array!(BooleanArray, be_bool, cnt))
+                // XXX arrow primitive type boolean
+                Arc::new(parse_array_nom!(BooleanArray, be_bool, cnt))
             }
             _ => panic!("unsupported data type in rowgroup_to_record_batch"),
         };

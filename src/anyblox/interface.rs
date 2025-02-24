@@ -73,15 +73,40 @@ impl DecoderFileState {
             Ok(f) => f,
             _ => panic!("failed to parse root file")
         };
-        // only one ttree supported for now
-        assert!(file.items().len() == 1);
-        let tree = file.items().first().unwrap().as_tree().unwrap();
-        Self {
-            tuples: tree.entries() as Tid,
-            rowgroups: RowGroup::find_rowgroups(&tree),
-            columns: tree.main_branch_names_and_types(),
-            // ttree_end_tids: tids
+
+        let item = file.items().iter()
+            .filter(|item| item.root_class() == "TTree")
+            .fold(None, |prev, item| {
+                // find biggest TTree
+                match prev {
+                    None => {
+                        debug_print!("found TTree named {} of size {}", item.name(), item.uncompressed_size());
+                        Some(item)
+                    }
+                    Some(prev_item) => {
+                        debug_print!("multiple TTrees in file, found : {}", item.name());
+                        if item.uncompressed_size() > prev_item.uncompressed_size() {
+                            debug_print!("found bigger TTree: {:?}, {} > {}", item, item.uncompressed_size(), prev_item.uncompressed_size());
+                            Some(item)
+                        } else {
+                            Some(prev_item)
+                        }
+                    }
+                }
+            });
+        match item {
+            None => panic!("no TTree found in file"),
+            Some(item) => {
+                let tree = item.as_tree().unwrap();
+                Self {
+                    tuples: tree.entries() as Tid,
+                    rowgroups: RowGroup::find_rowgroups(&tree),
+                    columns: tree.main_branch_names_and_types(),
+                    // ttree_end_tids: tids
+                }
+            }
         }
+
     }
 }
 

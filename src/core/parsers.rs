@@ -156,6 +156,7 @@ where
 }
 
 fn decode_reader<'s>(bytes: &'s [u8], magic: &[u8]) -> nom::IResult<&'s [u8], Vec<u8>> {
+    // print magic as chars
     match magic {
         b"ZL" => map_res(rest, |bytes| {
             let mut ret = vec![];
@@ -181,7 +182,7 @@ fn decode_reader<'s>(bytes: &'s [u8], magic: &[u8]) -> nom::IResult<&'s [u8], Ve
 pub fn decompress(input: &[u8]) -> nom::IResult<&[u8], Vec<u8>> {
     let (input, magic) = take(2usize)(input)?;
     let (input, _header) = take(7usize)(input)?;
-    // println!("decompressing input w/ magic: {:?}", magic);
+    debug_print!("decompress scheme: {:?}", magic.iter().map(|&b| b as char).collect::<String>());
     decode_reader(input, magic)
 }
 
@@ -215,7 +216,7 @@ fn decode_reader_into<'s, 'o>(bytes: &'s [u8], mut output: &'o mut [u8], magic: 
 pub fn decompress_into<'s, 'o>(input: &'s [u8], output: &'o mut [u8]) -> nom::IResult<&'s [u8], usize> {
     let (input, magic) = take(2usize)(input)?;
     let (input, _header) = take(7usize)(input)?;
-    // println!("decompressing input w/ magic: {:?}", magic);
+    debug_print!("decompress_into scheme: {:?}", magic.iter().map(|&b| b as char).collect::<String>());
     decode_reader_into(input, output, magic)
 }
 
